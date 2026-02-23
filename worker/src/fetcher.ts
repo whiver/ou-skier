@@ -4,6 +4,10 @@ import { ResortSnowData } from "./types";
 
 const NORDIC_FRANCE_BULLETIN_URL =
   "https://www.nordicfrance.fr/le-bulletin-neige/";
+const NORDIC_FRANCE_AJAX_URL =
+  "https://www.nordicfrance.fr/cms/wp-admin/admin-ajax.php";
+const POSTS_PER_PAGE = 50;
+const MAX_PAGES = 40;
 
 /**
  * Parses a snow depth string like "30/60 cm" or "45 cm" into base and top values.
@@ -39,6 +43,121 @@ function parseSlopes(raw: string | undefined): [number | null, number | null] {
   return [null, null];
 }
 
+function parseNumber(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const normalized = raw.replace(",", ".").trim();
+  const value = parseFloat(normalized);
+  return Number.isNaN(value) ? null : value;
+}
+
+function parseFrenchDayMonth(raw: string | undefined): Date {
+  if (!raw) return new Date();
+
+  const match = raw.trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return new Date();
+
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  if (Number.isNaN(day) || Number.isNaN(month)) return new Date();
+
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (Number.isNaN(parsed.getTime())) return now;
+  return parsed;
+}
+
+async function fetchWeatherPage(page: number): Promise<string> {
+  const form = new URLSearchParams({
+    action: "load_more_weather",
+    page: String(page),
+    posts_per_pages: String(POSTS_PER_PAGE),
+  });
+
+  const response = await fetch(NORDIC_FRANCE_AJAX_URL, {
+    method: "POST",
+    headers: {
+      "User-Agent":
+        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
+      Accept: "text/html, */*",
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      Origin: "https://www.nordicfrance.fr",
+      Referer: NORDIC_FRANCE_BULLETIN_URL,
+      "X-Requested-With": "XMLHttpRequest",
+    },
+    body: form.toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch Nordic France AJAX page ${page}: HTTP ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.text();
+}
+
+function parseWeatherCards(html: string): ResortSnowData[] {
+  const $ = cheerio.load(html);
+  const records: ResortSnowData[] = [];
+
+  $(".Weather-itemContainer").each((_, container) => {
+    const card = $(container);
+    const name = card.find(".Weather-name").first().text().trim();
+    if (!name) return;
+
+    const slopesRaw = card.find(".Weather-pistes").first().text().replace(/\s+/g, " ").trim();
+    const [openSlopes, totalSlopes] = parseSlopes(slopesRaw);
+
+    const kmRaw = card.find(".Weather-km").first().text().replace(/\s+/g, " ").trim();
+    const updateRaw = card
+      .find(".Weather-neigeHeight")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const href = card.find("a.Weather-link").attr("href") ?? null;
+    const domainUrl = href ? new URL(href, "https://www.nordicfrance.fr").toString() : null;
+    const recordDate = parseFrenchDayMonth(updateRaw);
+
+    // Some cards can expose snow depth in text form; parse only if present.
+    const snowRaw = card
+      .find(".Weather-neige, .Weather-snow, [data-snow-depth]")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+    const [snowDepthBase, snowDepthTop] = parseSnowDepths(snowRaw || undefined);
+
+    const freshRaw = card
+      .find(".Weather-freshSnow, .Weather-neigeFraiche, [data-fresh-snow]")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+    const freshSnow = parseNumber(freshRaw.replace(/cm/gi, ""));
+
+    records.push({
+      name,
+      region: null,
+      department: null,
+      domainUrl,
+      recordDate,
+      openSlopes,
+      totalSlopes,
+      snowDepthBase,
+      snowDepthTop,
+      freshSnow,
+      notes: kmRaw || null,
+      sourceUrl: domainUrl ?? NORDIC_FRANCE_BULLETIN_URL,
+    });
+  });
+
+  return records;
+}
+
 /**
  * Fetches and parses snow condition data from the Nordic France bulletin de neige.
  *
@@ -52,91 +171,23 @@ function parseSlopes(raw: string | undefined): [number | null, number | null] {
  *     Domain name | Region | Snow base | Snow top | Fresh snow | Open trails | Notes
  */
 export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
-  const response = await fetch(NORDIC_FRANCE_BULLETIN_URL, {
-    headers: {
-      "User-Agent":
-        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
-      Accept: "text/html,application/xhtml+xml",
-    },
-  });
+  const allRecords: ResortSnowData[] = [];
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Nordic France bulletin: HTTP ${response.status} ${response.statusText}`
-    );
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const html = await fetchWeatherPage(page);
+    const pageRecords = parseWeatherCards(html);
+
+    if (pageRecords.length === 0) {
+      break;
+    }
+
+    allRecords.push(...pageRecords);
   }
 
-  const html = await response.text();
-  const $ = cheerio.load(html);
-  const results: ResortSnowData[] = [];
-
-  // Determine the bulletin date from the page (format varies but commonly in <h2> or <p>)
-  let bulletinDate = new Date();
-  const dateText = $("h2, h3, .bulletin-date, .date")
-    .filter((_, el) => /\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}/.test($(el).text()))
-    .first()
-    .text();
-  if (dateText) {
-    const parsed = new Date(dateText);
-    if (!isNaN(parsed.getTime())) {
-      bulletinDate = parsed;
-    }
+  const uniqueByName = new Map<string, ResortSnowData>();
+  for (const record of allRecords) {
+    uniqueByName.set(record.name, record);
   }
 
-  // Parse each row in the bulletin table.
-  // The exact selectors depend on the site's HTML structure and may need
-  // updating if the site is redesigned.
-  $("table tr, .domaine-row, .resort-row").each((_, row) => {
-    const cells = $(row).find("td, .cell");
-    if (cells.length < 3) return;
-
-    const name = $(cells[0]).text().trim();
-    if (!name || name.toLowerCase() === "domaine" || name.toLowerCase() === "station") {
-      return; // Skip header rows
-    }
-
-    const region = $(cells[1]).text().trim() || null;
-    const snowRaw = $(cells[2]).text().trim();
-    const [snowDepthBase, snowDepthTop] = parseSnowDepths(snowRaw);
-
-    let freshSnow: number | null = null;
-    let openSlopes: number | null = null;
-    let totalSlopes: number | null = null;
-    let notes: string | null = null;
-
-    if (cells.length > 3) {
-      const freshRaw = $(cells[3]).text().trim();
-      const freshParsed = parseFloat(freshRaw.replace(/\s*cm/i, ""));
-      freshSnow = isNaN(freshParsed) ? null : freshParsed;
-    }
-
-    if (cells.length > 4) {
-      const slopesRaw = $(cells[4]).text().trim();
-      [openSlopes, totalSlopes] = parseSlopes(slopesRaw);
-    }
-
-    if (cells.length > 5) {
-      notes = $(cells[5]).text().trim() || null;
-    }
-
-    // Extract domain URL if present in the name cell
-    const domainUrl = $(cells[0]).find("a").attr("href") ?? null;
-
-    results.push({
-      name,
-      region,
-      department: null,
-      domainUrl,
-      recordDate: bulletinDate,
-      openSlopes,
-      totalSlopes,
-      snowDepthBase,
-      snowDepthTop,
-      freshSnow,
-      notes,
-      sourceUrl: NORDIC_FRANCE_BULLETIN_URL,
-    });
-  });
-
-  return results;
+  return [...uniqueByName.values()];
 }
