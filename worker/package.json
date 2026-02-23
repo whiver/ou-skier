@@ -1,0 +1,37 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "description": "Data ingestion worker for ou-skier — fetches Nordic France snow conditions",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy"
+  },
+  "keywords": [
+    "ski",
+    "nordic",
+    "france",
+    "snow"
+  ],
+  "license": "GPL-3.0",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.16.0",
+    "prisma": "^6.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^6.0.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.4.0",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.18.0"
+  }
+}
