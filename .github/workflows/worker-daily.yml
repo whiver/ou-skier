@@ -34,8 +34,5 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
-      - name: Build worker
-        run: npm run build
-
       - name: Run ingestion worker
-        run: npm start
+        run: npm run dev
