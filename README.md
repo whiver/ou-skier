@@ -97,7 +97,7 @@ npm run build    # compile TypeScript
 npm start        # run compiled version
 ```
 
-For automated updates, run the worker on a schedule (e.g. daily at 8:00 AM) using a cron job or Vercel Cron Jobs.
+For automated updates, run the worker on a schedule (e.g. daily at 8:00 AM) using a cron job or a scheduled GitHub Actions workflow.
 
 ## Deployment
 
@@ -111,7 +111,6 @@ For automated updates, run the worker on a schedule (e.g. daily at 8:00 AM) usin
 ### Worker
 
 The worker can be deployed as:
-- A Vercel Cron Job (via a Next.js API route at `/api/cron/ingest`)
 - A standalone Node.js process on any server
 - A scheduled GitHub Actions workflow
 

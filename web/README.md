@@ -29,7 +29,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `CRON_SECRET` | (Optional) Secret to protect the cron ingest endpoint |
 
 ## Scripts
 
