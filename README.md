@@ -60,7 +60,8 @@ SnowRecord
 
    ```bash
    cd web
-   cp .env.example .env.local   # then fill in DATABASE_URL
+   cp .env.example .env         # Prisma CLI reads this for migrate/generate
+   cp .env.example .env.local   # Next.js app runtime
    npm install
    npx prisma migrate deploy
    npx prisma generate

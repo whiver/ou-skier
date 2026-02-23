@@ -5,6 +5,10 @@ This is the Next.js web application for [Où Skier?](https://github.com/whiver/o
 ## Setup
 
 ```bash
+# Prisma CLI uses .env; Next.js uses .env.local
+cp .env.example .env
+cp .env.example .env.local
+
 # Install dependencies
 npm install
 
