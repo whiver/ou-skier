@@ -60,7 +60,7 @@ SnowRecord
 
    ```bash
    cd web
-   cp .env .env.local   # then fill in DATABASE_URL
+   cp .env.example .env.local   # then fill in DATABASE_URL
    npm install
    npx prisma migrate deploy
    npx prisma generate
