@@ -2,6 +2,8 @@
 
 This is the Next.js web application for [Où Skier?](https://github.com/whiver/ou-skier), serving snow condition data for Nordic ski resorts in France.
 
+Prisma schema and migrations are shared at the repository root in `../prisma/`.
+
 ## Setup
 
 ```bash

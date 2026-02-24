@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "db:generate": "prisma generate",
+    "db:generate": "PRISMA_GENERATE_SKIP_AUTOINSTALL=1 prisma generate",
     "db:migrate": "prisma migrate deploy"
   },
   "keywords": [
@@ -22,13 +22,13 @@
     "@types/cheerio": "^0.22.35",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.16.0",
-    "prisma": "^6.0.0",
+    "prisma": "^7.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.0"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "^7.4.1",
     "cheerio": "^1.2.0",
     "dotenv": "^16.4.0",
     "node-fetch": "^3.3.2",

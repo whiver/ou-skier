@@ -11,7 +11,7 @@ The project is split into two components:
 | **Web app** | `web/` | Next.js application displaying ski resort snow conditions |
 | **Worker** | `worker/` | Data ingestion worker that fetches Nordic France snow bulletins |
 
-Both share the same PostgreSQL database schema (defined in `worker/prisma/schema.prisma` and mirrored in `web/prisma/schema.prisma`).
+Both share the same PostgreSQL database schema and migration history from `prisma/schema.prisma` and `prisma/migrations/`.
 
 ## Database Schema
 

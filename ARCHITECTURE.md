@@ -8,10 +8,13 @@ This document explains design decisions, code conventions, and implementation de
 
 ```
 ou-skier/
+├── prisma/                Shared Prisma source of truth
+│   ├── schema.prisma      Shared schema for web + worker
+│   └── migrations/        Shared SQL migrations
+│
 ├── web/                   Next.js web application
 │   ├── app/               App Router pages and API routes
 │   │   ├── api/
-│   │   │   ├── cron/ingest/route.ts   Vercel Cron Job handler
 │   │   │   └── resorts/
 │   │   │       ├── route.ts           GET /api/resorts
 │   │   │       └── [id]/route.ts      GET /api/resorts/:id
@@ -21,51 +24,31 @@ ou-skier/
 │   │   └── ResortCard.tsx             Resort summary card
 │   ├── lib/
 │   │   ├── prisma.ts                  Singleton Prisma client
-│   │   └── ingest/fetcher.ts          HTML scraper (used by cron route)
-│   ├── prisma/
-│   │   ├── schema.prisma              Prisma 7 schema (no `url` in datasource)
-│   │   └── migrations/                SQL migration files
+│   │   └── ingest/                    Data ingestion helpers (worker-only source of truth)
 │   ├── types/index.ts                 TypeScript mirror of Prisma types
-│   └── vercel.json                    Cron schedule configuration
+│   └── prisma.config.ts               Prisma config (uses shared `prisma/` symlink)
 │
 └── worker/                Standalone ingestion process
     ├── src/
     │   ├── index.ts       Entry point (fetch → sync → disconnect)
-    │   ├── fetcher.ts     HTML scraper (node-fetch + cheerio)
+     │   ├── fetcher.ts     Nordic France AJAX fetcher
     │   ├── sync.ts        Database upsert logic
     │   ├── db.ts          Prisma client singleton
     │   └── types.ts       ResortSnowData interface
-    └── prisma/
-        ├── schema.prisma  Prisma 6 schema (has `url` in datasource)
-        └── migrations/    Same SQL migration files as web/
+     └── prisma.config.ts   Prisma config (uses shared `prisma/` symlink)
 ```
 
 ---
 
-## Dual Prisma setup
+## Shared Prisma setup
 
-The `web/` and `worker/` packages each maintain their own Prisma installation. This is an intentional trade-off — it avoids a shared-package build step at the cost of keeping the schemas in sync manually.
+There is a single Prisma schema and migration history under `prisma/` at the repository root.
 
-| Aspect | `web/` | `worker/` |
-|--------|--------|-----------|
-| Prisma version | 7.x | 6.x |
-| Connection method | `@prisma/adapter-pg` (driver adapter) | `datasourceUrl` option on `PrismaClient` |
-| Datasource `url` in schema | ❌ removed (Prisma 7 requirement) | ✅ present (`env("DATABASE_URL")`) |
-| Generated client output | `app/generated/prisma/` | `src/generated/prisma/` |
+- `web/prisma` is a symlink to `../prisma`.
+- `worker/prisma` is a symlink to `../prisma`.
+- Both `prisma.config.ts` files still use `prisma/schema.prisma` and `prisma/migrations`, but now read from the shared root source.
 
-**Why different versions?** Prisma 7 was not yet stable across all adapters when the worker was scaffolded. Prisma 6 is used in the worker because it supports the simpler `datasourceUrl` constructor option, avoiding the need for a driver adapter in a short-lived Node.js process.
-
-**Keeping schemas in sync:** Both `prisma/schema.prisma` files must be kept identical (except for the generator `output` path and whether the datasource has a `url` field). When adding or modifying models, update both files and regenerate both clients:
-
-```bash
-# Web
-cd web && npx prisma generate
-
-# Worker
-cd worker && npx prisma generate
-```
-
-Migrations live in `web/prisma/migrations/` and are mirrored to `worker/prisma/migrations/`. Run migrations once against the shared database (from either package).
+This removes schema/migration duplication and ensures both apps always use the same database definition.
 
 ---
 
@@ -74,9 +57,9 @@ Migrations live in `web/prisma/migrations/` and are mirrored to `worker/prisma/m
 ```
 Nordic France website
         │
-        │  HTTP GET (daily cron or manual run)
+     │  scheduled worker run
         ▼
-   fetcher.ts / lib/ingest/fetcher.ts
+   worker/src/fetcher.ts
    ┌──────────────────────────────────┐
    │ 1. Fetch HTML bulletin page      │
    │ 2. Parse date from heading       │
@@ -89,7 +72,7 @@ Nordic France website
    └──────────────────────────────────┘
         │
         ▼
-   sync.ts (worker) / api/cron/ingest/route.ts (web)
+     worker/src/sync.ts
    ┌──────────────────────────────────┐
    │ For each record:                 │
    │   UPSERT Resort (key: name)      │
@@ -132,11 +115,7 @@ Rows with fewer than 3 cells, or whose first cell equals `"domaine"` or `"statio
 
 ### Updating selectors
 
-If the bulletin page changes structure, update the selectors in:
-- `worker/src/fetcher.ts` (standalone worker)
-- `web/lib/ingest/fetcher.ts` (Vercel cron route)
-
-Both files share the same logic — changes must be applied to both.
+If the bulletin page changes structure, update the selectors in `worker/src/fetcher.ts`.
 
 ---
 
@@ -146,17 +125,6 @@ Every ingestion run is fully idempotent:
 
 - **Resort** records are upserted by `name` (which is `@unique` in the schema). Metadata fields (region, domainUrl) are updated only if the scraped value is non-null, preserving any previously stored value.
 - **SnowRecord** records are upserted by `(resortId, recordDate)`. The `recordDate` is always normalised to **midnight UTC** before the upsert, so running the worker multiple times on the same day does not create duplicate records.
-
----
-
-## Cron job security
-
-`GET /api/cron/ingest` checks the `Authorization` header against `Bearer <CRON_SECRET>`.
-
-- If `CRON_SECRET` is **not set**, the endpoint is open (acceptable in development).
-- If `CRON_SECRET` **is set**, requests without the correct header return `401 Unauthorized`.
-
-Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` when it invokes a cron endpoint, so no extra configuration is needed beyond setting the env var.
 
 ---
 
@@ -170,7 +138,6 @@ All pages use **Next.js Server Components** and query the database directly thro
 | `/resorts/[id]` | Dynamic Server Component | `resort.findUnique` with last 10 `SnowRecord`s |
 | `GET /api/resorts` | Route Handler | `resort.findMany` with latest `SnowRecord` |
 | `GET /api/resorts/[id]` | Route Handler | `resort.findUnique` with last 10 `SnowRecord`s |
-| `GET /api/cron/ingest` | Route Handler | upsert loop (write path) |
 
 ---
 
@@ -199,8 +166,6 @@ The following directories are **auto-generated** and excluded from version contr
 
 | Path | Generated by |
 |------|-------------|
-| `web/app/generated/prisma/` | `npx prisma generate` in `web/` |
-| `worker/src/generated/prisma/` | `npx prisma generate` in `worker/` |
 | `web/.next/` | `npm run build` |
 | `worker/dist/` | `npm run build` (tsc) |
 
@@ -210,7 +175,7 @@ Always regenerate the Prisma client after modifying either `schema.prisma`.
 
 ## Known limitations & future improvements
 
-- **Duplicated schema & fetcher logic.** Both packages define the same Prisma schema and HTML scraper independently. A future improvement would be to extract a shared `packages/` workspace (e.g. `packages/db` for the schema, `packages/scraper` for the fetcher).
+- **HTML structure can still change.** The worker parser relies on Nordic France markup and may need selector updates when the site changes.
 - **Best-effort HTML scraping.** The scraper will silently return zero records if the Nordic France bulletin page is redesigned. Consider adding alerting if a cron run returns 0 records.
 - **No historical archiving.** Only the last 10 `SnowRecord` entries per resort are returned by the API. Older records remain in the database but are not surfaced in the UI.
 - **Latitude/longitude fields** are present in the schema but not yet populated. A future map view could use them.

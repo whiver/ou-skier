@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "PRISMA_GENERATE_SKIP_AUTOINSTALL=1 prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
