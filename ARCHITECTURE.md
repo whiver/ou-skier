@@ -78,10 +78,15 @@ Nordic France website
         ▼
      worker/src/sync.ts
    ┌──────────────────────────────────┐
-   │ For each record:                 │
-   │   UPSERT Resort (key: name)      │
-   │   UPSERT SnowRecord              │
-   │     (key: resortId + recordDate) │
+     │ For each record:                 │
+     │   FIND Resort by name            │
+     │   If missing:                    │
+     │     - geocode lat/lng            │
+     │       (BAN → Nominatim fallback) │
+     │     - CREATE Resort              │
+     │   Else: UPDATE Resort metadata   │
+     │   UPSERT SnowRecord              │
+     │     (key: resortId + recordDate) │
    └──────────────────────────────────┘
         │
         ▼
@@ -112,6 +117,15 @@ The worker enriches card entries with massif metadata using station permalink ma
 Massif-to-`Region` mapping is applied by default during ingestion.
 
 This mapping is intentionally simple and may be imperfect for cross-region massifs (for example Jura, Pyrénées, or Massif Central).
+
+### Coordinates enrichment
+
+When a resort is created for the first time, the worker attempts to populate `latitude` and `longitude` via geocoding:
+
+1. Primary geocoder: `api-adresse.data.gouv.fr` (BAN)
+2. Fallback geocoder: OpenStreetMap Nominatim
+
+Coordinates are only fetched for **new** resorts; existing resorts are not re-geocoded during later runs.
 
 ---
 
@@ -175,4 +189,4 @@ Always regenerate the Prisma client after modifying either `schema.prisma`.
 - **Best-effort HTML scraping.** The scraper will silently return zero records if the Nordic France bulletin page is redesigned. Consider adding alerting if a cron run returns 0 records.
 - **Massif to Region approximation.** Some massifs span multiple administrative regions; current mapping is a pragmatic default, not a cadastral truth.
 - **No historical archiving.** Only the last 10 `SnowRecord` entries per resort are returned by the API. Older records remain in the database but are not surfaced in the UI.
-- **Latitude/longitude fields** are present in the schema but not yet populated. A future map view could use them.
+- **Geocoding quality is best-effort.** Some station names are ambiguous, so a minority of resorts may still have missing or imperfect coordinates.

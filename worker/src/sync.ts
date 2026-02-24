@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { ResortSnowData } from "./types";
+import { geocodeResort } from "./geocode";
 
 /**
  * Upserts resort and snow record data into the database.
@@ -10,20 +11,44 @@ import { ResortSnowData } from "./types";
  */
 export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
+  let createdResorts = 0;
+  let geocodedResorts = 0;
 
   for (const record of records) {
-    const resort = await db.resort.upsert({
+    const existingResort = await db.resort.findUnique({
       where: { name: record.name },
-      create: {
-        name: record.name,
-        region: record.region,
-        domainUrl: record.domainUrl,
-      },
-      update: {
-        region: record.region ?? undefined,
-        domainUrl: record.domainUrl ?? undefined,
-      },
+      select: { id: true },
     });
+
+    const resort = existingResort
+      ? await db.resort.update({
+          where: { id: existingResort.id },
+          data: {
+            region: record.region ?? undefined,
+            domainUrl: record.domainUrl ?? undefined,
+          },
+        })
+      : await (async () => {
+          createdResorts += 1;
+          const geocoded = await geocodeResort(record.name, record.region);
+
+          if (geocoded) {
+            geocodedResorts += 1;
+            console.log(
+              `→ Geocoded new resort "${record.name}" (${geocoded.source}) @ ${geocoded.latitude}, ${geocoded.longitude}`
+            );
+          }
+
+          return db.resort.create({
+            data: {
+              name: record.name,
+              region: record.region,
+              domainUrl: record.domainUrl,
+              latitude: geocoded?.latitude ?? null,
+              longitude: geocoded?.longitude ?? null,
+            },
+          });
+        })();
 
     // Normalize recordDate to midnight UTC to avoid sub-day duplicates
     const recordDate = new Date(
@@ -65,4 +90,7 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   }
 
   console.log(`✓ Synced ${records.length} resort record(s).`);
+  console.log(
+    `→ New resorts: ${createdResorts} (geocoded: ${geocodedResorts})`
+  );
 }

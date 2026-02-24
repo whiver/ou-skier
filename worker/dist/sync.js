@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.syncResorts = syncResorts;
 const db_1 = require("./db");
+const geocode_1 = require("./geocode");
 /**
  * Upserts resort and snow record data into the database.
  *
@@ -11,19 +12,38 @@ const db_1 = require("./db");
  */
 async function syncResorts(records) {
     const db = (0, db_1.getDb)();
+    let createdResorts = 0;
+    let geocodedResorts = 0;
     for (const record of records) {
-        const resort = await db.resort.upsert({
+        const existingResort = await db.resort.findUnique({
             where: { name: record.name },
-            create: {
-                name: record.name,
-                region: record.region,
-                domainUrl: record.domainUrl,
-            },
-            update: {
-                region: record.region ?? undefined,
-                domainUrl: record.domainUrl ?? undefined,
-            },
+            select: { id: true },
         });
+        const resort = existingResort
+            ? await db.resort.update({
+                where: { id: existingResort.id },
+                data: {
+                    region: record.region ?? undefined,
+                    domainUrl: record.domainUrl ?? undefined,
+                },
+            })
+            : await (async () => {
+                createdResorts += 1;
+                const geocoded = await (0, geocode_1.geocodeResort)(record.name, record.region);
+                if (geocoded) {
+                    geocodedResorts += 1;
+                    console.log(`→ Geocoded new resort "${record.name}" (${geocoded.source}) @ ${geocoded.latitude}, ${geocoded.longitude}`);
+                }
+                return db.resort.create({
+                    data: {
+                        name: record.name,
+                        region: record.region,
+                        domainUrl: record.domainUrl,
+                        latitude: geocoded?.latitude ?? null,
+                        longitude: geocoded?.longitude ?? null,
+                    },
+                });
+            })();
         // Normalize recordDate to midnight UTC to avoid sub-day duplicates
         const recordDate = new Date(Date.UTC(record.recordDate.getUTCFullYear(), record.recordDate.getUTCMonth(), record.recordDate.getUTCDate()));
         await db.snowRecord.upsert({
@@ -56,4 +76,5 @@ async function syncResorts(records) {
         });
     }
     console.log(`✓ Synced ${records.length} resort record(s).`);
+    console.log(`→ New resorts: ${createdResorts} (geocoded: ${geocodedResorts})`);
 }

@@ -91,6 +91,8 @@ The worker fetches the latest [Nordic France](https://www.nordicfrance.fr/le-bul
 
 It combines paginated weather cards with inline station metadata (`Weather.posts`) from the bulletin page to infer a massif, then maps that massif to a best-effort `Region` value.
 
+For newly discovered resorts, the worker also attempts to fill `latitude` / `longitude` once (BAN geocoder with Nominatim fallback) so resorts can be displayed on a map.
+
 Because some massifs span multiple administrative regions, this region attribution remains approximate.
 
 ```bash
