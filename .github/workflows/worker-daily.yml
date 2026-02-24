@@ -2,7 +2,7 @@ name: Worker daily ingestion
 
 on:
   schedule:
-    - cron: "0 12 * * *" # Every day at 12:00 UTC
+    - cron: "0 11 * 11,12,1,2,3 *" # Every day from Nov to Mar at 11:00 UTC (12:00 in France during winter/CET)
   workflow_dispatch:
 
 jobs:
