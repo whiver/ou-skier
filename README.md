@@ -19,8 +19,8 @@ Both share the same PostgreSQL database schema and migration history from `prism
 Resort
 ├── id             Integer (PK)
 ├── name           String
-├── region         String?
-├── department     String?
+├── region         Region?      (enum, metropolitan regions)
+├── department     Department?  (enum, metropolitan department code)
 ├── domainUrl      String?
 ├── latitude       Float?
 ├── longitude      Float?
