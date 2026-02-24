@@ -99,6 +99,106 @@ function parseFrenchDayMonth(raw) {
         return now;
     return parsed;
 }
+function normalizeName(value) {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+}
+function normalizeUrl(value) {
+    return value.replace(/\/+$/, "");
+}
+function mapMassifToRegion(massif) {
+    if (!massif)
+        return null;
+    const mapping = {
+        alpes_du_nord: "AUVERGNE_RHONE_ALPES",
+        alpes_du_sud: "PROVENCE_ALPES_COTE_D_AZUR",
+        jura: "BOURGOGNE_FRANCHE_COMTE",
+        massif_central: "AUVERGNE_RHONE_ALPES",
+        pyrenees: "OCCITANIE",
+        vosges: "GRAND_EST",
+        "around-me": null,
+    };
+    return mapping[massif] ?? null;
+}
+function extractPostsJson(html) {
+    const marker = "this.posts =";
+    const markerIndex = html.indexOf(marker);
+    if (markerIndex === -1)
+        return null;
+    const arrayStart = html.indexOf("[", markerIndex);
+    if (arrayStart === -1)
+        return null;
+    let depth = 0;
+    let inString = false;
+    let stringQuote = "";
+    let escaped = false;
+    for (let index = arrayStart; index < html.length; index += 1) {
+        const char = html[index];
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            }
+            else if (char === "\\") {
+                escaped = true;
+            }
+            else if (char === stringQuote) {
+                inString = false;
+                stringQuote = "";
+            }
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            inString = true;
+            stringQuote = char;
+            continue;
+        }
+        if (char === "[") {
+            depth += 1;
+            continue;
+        }
+        if (char === "]") {
+            depth -= 1;
+            if (depth === 0) {
+                return html.slice(arrayStart, index + 1);
+            }
+        }
+    }
+    return null;
+}
+async function fetchBulletinMetadataIndex() {
+    const response = await (0, node_fetch_1.default)(NORDIC_FRANCE_BULLETIN_URL, {
+        headers: {
+            "User-Agent": "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
+            Accept: "text/html, */*",
+            Referer: NORDIC_FRANCE_BULLETIN_URL,
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch Nordic France bulletin page: HTTP ${response.status} ${response.statusText}`);
+    }
+    const html = await response.text();
+    const postsJson = extractPostsJson(html);
+    if (!postsJson) {
+        throw new Error("Failed to locate Weather.posts metadata in Nordic France bulletin page");
+    }
+    const parsed = JSON.parse(postsJson);
+    const byPermalink = new Map();
+    const byLabel = new Map();
+    for (const post of parsed) {
+        if (!post.permalink || !post.label)
+            continue;
+        byPermalink.set(normalizeUrl(post.permalink), post);
+        byLabel.set(normalizeName(post.label), post);
+    }
+    return {
+        byPermalink,
+        byLabel,
+    };
+}
 async function fetchWeatherPage(page) {
     const form = new URLSearchParams({
         action: "load_more_weather",
@@ -122,7 +222,7 @@ async function fetchWeatherPage(page) {
     }
     return response.text();
 }
-function parseWeatherCards(html) {
+function parseWeatherCards(html, metadataIndex) {
     const $ = cheerio.load(html);
     const records = [];
     $(".Weather-itemContainer").each((_, container) => {
@@ -141,6 +241,12 @@ function parseWeatherCards(html) {
             .trim();
         const href = card.find("a.Weather-link").attr("href") ?? null;
         const domainUrl = href ? new URL(href, "https://www.nordicfrance.fr").toString() : null;
+        const normalizedDomainUrl = domainUrl ? normalizeUrl(domainUrl) : null;
+        const normalizedName = normalizeName(name);
+        const metadata = (normalizedDomainUrl
+            ? metadataIndex.byPermalink.get(normalizedDomainUrl)
+            : undefined) ?? metadataIndex.byLabel.get(normalizedName);
+        const massif = metadata?.massif ?? null;
         const recordDate = parseFrenchDayMonth(updateRaw);
         // Some cards can expose snow depth in text form; parse only if present.
         const snowRaw = card
@@ -159,8 +265,7 @@ function parseWeatherCards(html) {
         const freshSnow = parseNumber(freshRaw.replace(/cm/gi, ""));
         records.push({
             name,
-            region: null,
-            department: null,
+            region: mapMassifToRegion(massif),
             domainUrl,
             recordDate,
             openSlopes,
@@ -187,10 +292,11 @@ function parseWeatherCards(html) {
  *     Domain name | Region | Snow base | Snow top | Fresh snow | Open trails | Notes
  */
 async function fetchNordicFranceBulletin() {
+    const metadataIndex = await fetchBulletinMetadataIndex();
     const allRecords = [];
     for (let page = 1; page <= MAX_PAGES; page += 1) {
         const html = await fetchWeatherPage(page);
-        const pageRecords = parseWeatherCards(html);
+        const pageRecords = parseWeatherCards(html, metadataIndex);
         if (pageRecords.length === 0) {
             break;
         }

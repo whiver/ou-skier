@@ -17,12 +17,10 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
       create: {
         name: record.name,
         region: record.region,
-        department: record.department,
         domainUrl: record.domainUrl,
       },
       update: {
         region: record.region ?? undefined,
-        department: record.department ?? undefined,
         domainUrl: record.domainUrl ?? undefined,
       },
     });

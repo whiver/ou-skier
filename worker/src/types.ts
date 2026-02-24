@@ -1,9 +1,8 @@
-import type { Department, Region } from "@prisma/client";
+import type { Region } from "@prisma/client";
 
 export interface ResortSnowData {
   name: string;
   region: Region | null;
-  department: Department | null;
   domainUrl: string | null;
   recordDate: Date;
   openSlopes: number | null;

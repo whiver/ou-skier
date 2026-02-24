@@ -36,9 +36,9 @@ export default function ResortCard({ resort }: { resort: Resort }) {
             <h2 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
               {resort.name}
             </h2>
-            {(resort.region || resort.department) && (
+            {resort.region && (
               <p className="text-sm text-gray-500 mt-0.5">
-                {[resort.department, resort.region].filter(Boolean).join(" — ")}
+                {resort.region}
               </p>
             )}
           </div>

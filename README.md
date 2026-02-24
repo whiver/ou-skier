@@ -20,7 +20,6 @@ Resort
 ├── id             Integer (PK)
 ├── name           String
 ├── region         Region?      (enum, metropolitan regions)
-├── department     Department?  (enum, metropolitan department code)
 ├── domainUrl      String?
 ├── latitude       Float?
 ├── longitude      Float?
@@ -89,6 +88,10 @@ DATABASE_URL=postgresql://user:password@host:5432/ou_skier
 ### Running the Worker
 
 The worker fetches the latest [Nordic France](https://www.nordicfrance.fr/le-bulletin-neige/) snow bulletin and upserts the data into the database.
+
+It combines paginated weather cards with inline station metadata (`Weather.posts`) from the bulletin page to infer a massif, then maps that massif to a best-effort `Region` value.
+
+Because some massifs span multiple administrative regions, this region attribution remains approximate.
 
 ```bash
 cd worker

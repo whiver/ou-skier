@@ -16,7 +16,6 @@ export interface Resort {
   id: number;
   name: string;
   region: string | null;
-  department: string | null;
   domainUrl: string | null;
   latitude: number | null;
   longitude: number | null;

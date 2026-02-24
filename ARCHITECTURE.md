@@ -61,14 +61,18 @@ Nordic France website
         ▼
    worker/src/fetcher.ts
    ┌──────────────────────────────────┐
-   │ 1. Fetch HTML bulletin page      │
-   │ 2. Parse date from heading       │
-   │ 3. Iterate table rows            │
-   │ 4. Parse each cell:              │
-   │    - snow depth ("30/60 cm")     │
-   │    - fresh snow ("5 cm")         │
-   │    - open/total slopes ("12/18") │
-   │ 5. Return []ResortSnowData       │
+     │ 1. Fetch bulletin page metadata  │
+     │    (inline `Weather.posts`)      │
+     │ 2. Fetch paginated AJAX weather  │
+     │    cards (`load_more_weather`)   │
+     │ 3. Parse each card:              │
+     │    - open/total slopes           │
+     │    - snow and fresh-snow fields  │
+     │    - update date (dd/mm)         │
+     │ 4. Enrich cards with massif from │
+     │    `Weather.posts` by permalink  │
+     │ 5. Map massif to Region enum     │
+     │ 6. Return []ResortSnowData       │
    └──────────────────────────────────┘
         │
         ▼
@@ -90,32 +94,24 @@ Nordic France website
 
 ---
 
-## HTML scraping design
+## Bulletin scraping design
 
-The scraper (`fetcher.ts`) targets the Nordic France bulletin page using CSS selectors. Because the site has no public API, the selectors are best-effort and **may break if the site is redesigned**.
+The scraper (`worker/src/fetcher.ts`) uses two Nordic France sources:
 
-### Bulletin date detection
+1. `GET /le-bulletin-neige/` to extract inline station metadata (`class Weather` → `this.posts = [...]`) containing `label`, `massif`, and `permalink`.
+2. `POST /cms/wp-admin/admin-ajax.php` with `action=load_more_weather` to fetch paginated weather cards.
 
-The scraper looks for the first `<h2>`, `<h3>`, `.bulletin-date`, or `.date` element whose text contains a date-like pattern (`dd month yyyy`). If none is found, it falls back to the current date.
+The AJAX response is parsed with CSS selectors such as `.Weather-itemContainer`, `.Weather-name`, `.Weather-pistes`, `.Weather-km`, and `.Weather-neigeHeight`.
 
-### Table row parsing
+Because this is frontend-coupled scraping, ingestion is still best-effort and may require selector updates if Nordic France changes its markup or JavaScript payload shape.
 
-Column order assumed (0-indexed):
+### Region inference
 
-| Index | Content |
-|-------|---------|
-| 0 | Resort name (may contain `<a>` for domain URL) |
-| 1 | Region |
-| 2 | Snow depth, format `"base/top cm"` or `"depth cm"` |
-| 3 | Fresh snow, format `"n cm"` |
-| 4 | Open/total slopes, format `"open/total"` or `"open"` |
-| 5 | Notes (optional free text) |
+The worker enriches card entries with massif metadata using station permalink matching against the inline `Weather.posts` array.
 
-Rows with fewer than 3 cells, or whose first cell equals `"domaine"` or `"station"` (header rows), are skipped.
+Massif-to-`Region` mapping is applied by default during ingestion.
 
-### Updating selectors
-
-If the bulletin page changes structure, update the selectors in `worker/src/fetcher.ts`.
+This mapping is intentionally simple and may be imperfect for cross-region massifs (for example Jura, Pyrénées, or Massif Central).
 
 ---
 
@@ -177,5 +173,6 @@ Always regenerate the Prisma client after modifying either `schema.prisma`.
 
 - **HTML structure can still change.** The worker parser relies on Nordic France markup and may need selector updates when the site changes.
 - **Best-effort HTML scraping.** The scraper will silently return zero records if the Nordic France bulletin page is redesigned. Consider adding alerting if a cron run returns 0 records.
+- **Massif to Region approximation.** Some massifs span multiple administrative regions; current mapping is a pragmatic default, not a cadastral truth.
 - **No historical archiving.** Only the last 10 `SnowRecord` entries per resort are returned by the API. Older records remain in the database but are not surfaced in the UI.
 - **Latitude/longitude fields** are present in the schema but not yet populated. A future map view could use them.
