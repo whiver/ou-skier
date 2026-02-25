@@ -1,4 +1,4 @@
-import ResortCard from "@/components/ResortCard";
+import HomePageClient from "@/components/HomePageClient";
 import { Resort } from "@/types";
 import { prisma } from "@/lib/prisma";
 
@@ -39,30 +39,7 @@ export default async function Home() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {resorts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
-            <span className="text-5xl" aria-hidden="true">🌨️</span>
-            <h2 className="mt-4 text-lg font-semibold text-gray-700">
-              Aucun domaine disponible
-            </h2>
-            <p className="mt-2 text-sm text-gray-400">
-              Les données seront disponibles après la première exécution du
-              worker d&apos;ingestion.
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="mb-6 text-sm text-gray-500">
-              {resorts.length} domaine{resorts.length > 1 ? "s" : ""} répertorié
-              {resorts.length > 1 ? "s" : ""}
-            </p>
-            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-              {resorts.map((resort) => (
-                <ResortCard key={resort.id} resort={resort} />
-              ))}
-            </div>
-          </>
-        )}
+        <HomePageClient resorts={resorts} />
       </main>
 
       <footer className="mt-16 border-t border-gray-100 py-6 text-center text-xs text-gray-400">

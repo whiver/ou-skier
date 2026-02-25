@@ -28,15 +28,17 @@ export default function ResortCard({ resort }: { resort: Resort }) {
             )}
           </div>
           {resort.domainUrl && (
-            <a
-              href={resort.domainUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
+              }}
               className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
             >
               Site officiel
-            </a>
+            </button>
           )}
         </div>
 
