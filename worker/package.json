@@ -4,11 +4,12 @@
   "description": "Data ingestion worker for ou-skier — fetches Nordic France snow conditions",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run db:generate && tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "db:generate": "PRISMA_GENERATE_SKIP_AUTOINSTALL=1 prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:sync-schema": "node -e \"const fs=require('fs');fs.mkdirSync('prisma',{recursive:true});fs.copyFileSync('../prisma/schema.prisma','prisma/schema.prisma');\"",
+    "db:generate": "npm run db:sync-schema && prisma generate",
+    "db:migrate": "npm run db:sync-schema && prisma migrate deploy"
   },
   "keywords": [
     "ski",
