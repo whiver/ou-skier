@@ -11,7 +11,10 @@ function getDb() {
         if (!connectionString) {
             throw new Error("DATABASE_URL environment variable is not set");
         }
-        const adapter = new adapter_pg_1.PrismaPg({ connectionString });
+        const adapter = new adapter_pg_1.PrismaPg({
+            connectionString,
+            ssl: { rejectUnauthorized: false },
+        });
         _prisma = new client_1.PrismaClient({
             adapter,
             log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
