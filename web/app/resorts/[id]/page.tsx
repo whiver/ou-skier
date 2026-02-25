@@ -121,17 +121,7 @@ export default async function ResortPage({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-8">
-              <StatBox
-                label="Enneigement bas"
-                value={latest.snowDepthBase}
-                unit="cm"
-              />
-              <StatBox
-                label="Enneigement haut"
-                value={latest.snowDepthTop}
-                unit="cm"
-              />
+            <div className="grid grid-cols-1 gap-3 mb-8 sm:max-w-xs">
               <StatBox
                 label="Pistes ouvertes"
                 value={
@@ -140,7 +130,6 @@ export default async function ResortPage({
                     : null
                 }
               />
-              <StatBox label="Neige fraîche" value={latest.freshSnow} unit="cm" />
             </div>
 
             {latest.notes && (
@@ -167,10 +156,7 @@ export default async function ResortPage({
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wide text-gray-400">
                     <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Bas</th>
-                    <th className="px-4 py-3">Haut</th>
                     <th className="px-4 py-3">Pistes</th>
-                    <th className="px-4 py-3">Fraîche</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,23 +169,8 @@ export default async function ResortPage({
                         {new Date(record.recordDate).toLocaleDateString("fr-FR")}
                       </td>
                       <td className="px-4 py-3 text-gray-800">
-                        {record.snowDepthBase !== null
-                          ? `${record.snowDepthBase} cm`
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        {record.snowDepthTop !== null
-                          ? `${record.snowDepthTop} cm`
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
                         {record.openSlopes !== null
                           ? `${record.openSlopes}${record.totalSlopes !== null ? `/${record.totalSlopes}` : ""}`
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        {record.freshSnow !== null
-                          ? `${record.freshSnow} cm`
                           : "—"}
                       </td>
                     </tr>

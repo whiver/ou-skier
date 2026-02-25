@@ -43,9 +43,6 @@ model SnowRecord {
   recordDate    DateTime
   openSlopes    Int?
   totalSlopes   Int?
-  snowDepthBase Float?
-  snowDepthTop  Float?
-  freshSnow     Float?
   notes         String?
   sourceUrl     String?
   createdAt     DateTime @default(now())

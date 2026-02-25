@@ -4,9 +4,6 @@ export interface SnowRecord {
   recordDate: string;
   openSlopes: number | null;
   totalSlopes: number | null;
-  snowDepthBase: number | null;
-  snowDepthTop: number | null;
-  freshSnow: number | null;
   notes: string | null;
   sourceUrl: string | null;
   createdAt: string;

@@ -32,9 +32,6 @@ SnowRecord
 ├── recordDate     DateTime
 ├── openSlopes     Int?
 ├── totalSlopes    Int?
-├── snowDepthBase  Float?   (cm at base)
-├── snowDepthTop   Float?   (cm at top)
-├── freshSnow      Float?   (cm of recent snowfall)
 ├── notes          String?
 └── sourceUrl      String?
 ```

@@ -31,25 +31,6 @@ interface BulletinMetadataIndex {
 }
 
 /**
- * Parses a snow depth string like "30/60 cm" or "45 cm" into base and top values.
- * Returns [base, top] where top may equal base if only one value is given.
- */
-function parseSnowDepths(
-  raw: string | undefined
-): [number | null, number | null] {
-  if (!raw) return [null, null];
-  const cleaned = raw.trim().replace(/\s*cm/i, "");
-  const parts = cleaned.split("/").map((s) => parseFloat(s.trim()));
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    return [parts[0], parts[1]];
-  }
-  if (parts.length === 1 && !isNaN(parts[0])) {
-    return [parts[0], parts[0]];
-  }
-  return [null, null];
-}
-
-/**
  * Parses an open/total slopes string like "12/18" or "12".
  */
 function parseSlopes(raw: string | undefined): [number | null, number | null] {
@@ -62,13 +43,6 @@ function parseSlopes(raw: string | undefined): [number | null, number | null] {
     return [parts[0], null];
   }
   return [null, null];
-}
-
-function parseNumber(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const normalized = raw.replace(",", ".").trim();
-  const value = parseFloat(normalized);
-  return Number.isNaN(value) ? null : value;
 }
 
 function parseFrenchDayMonth(raw: string | undefined): Date {
@@ -276,23 +250,6 @@ function parseWeatherCards(
     const massif = metadata?.massif ?? null;
     const recordDate = parseFrenchDayMonth(updateRaw);
 
-    // Some cards can expose snow depth in text form; parse only if present.
-    const snowRaw = card
-      .find(".Weather-neige, .Weather-snow, [data-snow-depth]")
-      .first()
-      .text()
-      .replace(/\s+/g, " ")
-      .trim();
-    const [snowDepthBase, snowDepthTop] = parseSnowDepths(snowRaw || undefined);
-
-    const freshRaw = card
-      .find(".Weather-freshSnow, .Weather-neigeFraiche, [data-fresh-snow]")
-      .first()
-      .text()
-      .replace(/\s+/g, " ")
-      .trim();
-    const freshSnow = parseNumber(freshRaw.replace(/cm/gi, ""));
-
     records.push({
       name,
       region: mapMassifToRegion(massif),
@@ -300,9 +257,6 @@ function parseWeatherCards(
       recordDate,
       openSlopes,
       totalSlopes,
-      snowDepthBase,
-      snowDepthTop,
-      freshSnow,
       notes: kmRaw || null,
       sourceUrl: domainUrl ?? NORDIC_FRANCE_BULLETIN_URL,
     });
@@ -321,7 +275,7 @@ function parseWeatherCards(
  *
  * Structure targeted (as of 2024):
  *   <table class="bulletin-neige"> or similar structure with rows:
- *     Domain name | Region | Snow base | Snow top | Fresh snow | Open trails | Notes
+ *     Domain name | Region | Open trails | Notes
  */
 export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
   const metadataIndex = await fetchBulletinMetadataIndex();
