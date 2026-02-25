@@ -145,7 +145,7 @@ All pages use **Next.js Server Components** and query the database directly thro
 | Route | Rendering | DB calls |
 |-------|-----------|----------|
 | `/` | Dynamic Server Component | `resort.findMany` with latest `SnowRecord` |
-| `/resorts/[id]` | Dynamic Server Component | `resort.findUnique` with last 10 `SnowRecord`s |
+| `/resorts/[id]` | Dynamic Server Component | `resort.findUnique` with last 10 `SnowRecord`s + seasonal weekly aggregation query |
 | `GET /api/resorts` | Route Handler | `resort.findMany` with latest `SnowRecord` |
 | `GET /api/resorts/[id]` | Route Handler | `resort.findUnique` with last 10 `SnowRecord`s |
 
@@ -188,5 +188,5 @@ Always regenerate the Prisma client after modifying either `schema.prisma`.
 - **HTML structure can still change.** The worker parser relies on Nordic France markup and may need selector updates when the site changes.
 - **Best-effort HTML scraping.** The scraper will silently return zero records if the Nordic France bulletin page is redesigned. Consider adding alerting if a cron run returns 0 records.
 - **Massif to Region approximation.** Some massifs span multiple administrative regions; current mapping is a pragmatic default, not a cadastral truth.
-- **No historical archiving.** Only the last 10 `SnowRecord` entries per resort are returned by the API. Older records remain in the database but are not surfaced in the UI.
+- **Limited historical API payload.** Only the last 10 `SnowRecord` entries per resort are returned by the API; the resort detail UI additionally surfaces weekly seasonal aggregates.
 - **Geocoding quality is best-effort.** Some station names are ambiguous, so a minority of resorts may still have missing or imperfect coordinates.

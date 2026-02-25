@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatRegionLabel } from "@/lib/region";
+import {
+  getResortAllYearsWeeklyAverageSnowStats,
+  getResortCurrentYearDailySnowStats,
+} from "@/lib/snowStats";
+import ResortSnowHeatmap from "@/components/ResortSnowHeatmap";
 import { Resort } from "@/types";
 
 async function getResort(id: number): Promise<Resort | null> {
@@ -73,6 +78,12 @@ export default async function ResortPage({
 
   const resort = await getResort(resortId);
   if (!resort) notFound();
+
+  const [dailySnowStatsCurrentYear, weeklySnowStatsAllYears] = await Promise.all([
+    getResortCurrentYearDailySnowStats(resortId),
+    getResortAllYearsWeeklyAverageSnowStats(resortId),
+  ]);
+  const currentYear = new Date().getUTCFullYear();
 
   const latest = resort.snowRecords[0] ?? null;
   const history = resort.snowRecords.slice(1);
@@ -147,6 +158,12 @@ export default async function ResortPage({
             </p>
           </div>
         )}
+
+        <ResortSnowHeatmap
+          currentYearDays={dailySnowStatsCurrentYear}
+          allYearsWeeks={weeklySnowStatsAllYears}
+          currentYear={currentYear}
+        />
 
         {history.length > 0 && (
           <section>
