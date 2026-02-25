@@ -13,7 +13,7 @@ type HomePageClientProps = {
 type ViewMode = "list" | "map";
 
 export default function HomePageClient({ resorts }: HomePageClientProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
 
@@ -87,17 +87,6 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
           <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
             <button
               type="button"
-              onClick={() => setViewMode("list")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                viewMode === "list"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Liste
-            </button>
-            <button
-              type="button"
               onClick={() => setViewMode("map")}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                 viewMode === "map"
@@ -106,6 +95,17 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
               }`}
             >
               Carte
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                viewMode === "list"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Liste
             </button>
           </div>
 
