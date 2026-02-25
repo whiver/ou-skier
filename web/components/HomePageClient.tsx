@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import ResortCard from "@/components/ResortCard";
 import ResortsMap from "@/components/ResortsMap";
+import { formatRegionLabel } from "@/lib/region";
 import type { Resort } from "@/types";
 
 type HomePageClientProps = {
@@ -23,7 +24,12 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
           .map((resort) => resort.region)
           .filter((region): region is string => Boolean(region))
       )
-    ).sort((left, right) => left.localeCompare(right, "fr"));
+    ).sort((left, right) => {
+      const leftLabel = formatRegionLabel(left) ?? left;
+      const rightLabel = formatRegionLabel(right) ?? right;
+
+      return leftLabel.localeCompare(rightLabel, "fr");
+    });
   }, [resorts]);
 
   const filteredResorts = useMemo(() => {
@@ -148,7 +154,7 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
                         : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
                     }`}
                   >
-                    {region}
+                    {formatRegionLabel(region)}
                   </button>
                 );
               })}

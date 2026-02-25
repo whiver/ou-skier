@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatRegionLabel } from "@/lib/region";
 import { Resort } from "@/types";
 
 async function getResort(id: number): Promise<Resort | null> {
@@ -75,6 +76,7 @@ export default async function ResortPage({
 
   const latest = resort.snowRecords[0] ?? null;
   const history = resort.snowRecords.slice(1);
+  const regionLabel = formatRegionLabel(resort.region);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
@@ -89,9 +91,9 @@ export default async function ResortPage({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{resort.name}</h1>
-              {resort.region && (
+              {regionLabel && (
                 <p className="mt-1 text-sm text-gray-500">
-                  {resort.region}
+                  {regionLabel}
                 </p>
               )}
             </div>

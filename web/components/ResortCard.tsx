@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { Resort } from "@/types";
+import { formatRegionLabel } from "@/lib/region";
 
 export default function ResortCard({ resort }: { resort: Resort }) {
   const latest = resort.snowRecords[0] ?? null;
+  const regionLabel = formatRegionLabel(resort.region);
   const recordDate = latest
     ? new Date(latest.recordDate).toLocaleDateString("fr-FR", {
         day: "numeric",
@@ -21,9 +23,9 @@ export default function ResortCard({ resort }: { resort: Resort }) {
             <h2 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
               {resort.name}
             </h2>
-            {resort.region && (
+            {regionLabel && (
               <p className="text-sm text-gray-500 mt-0.5">
-                {resort.region}
+                {regionLabel}
               </p>
             )}
           </div>

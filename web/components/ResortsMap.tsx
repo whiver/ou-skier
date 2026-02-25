@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { Resort } from "@/types";
+import { formatRegionLabel } from "@/lib/region";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((module) => module.MapContainer),
@@ -69,6 +70,8 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
             return null;
           }
 
+          const regionLabel = formatRegionLabel(resort.region);
+
           return (
             <Marker
               key={resort.id}
@@ -77,8 +80,8 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
               <Popup>
                 <div className="min-w-44">
                   <p className="font-semibold text-gray-900">{resort.name}</p>
-                  {resort.region && (
-                    <p className="text-sm text-gray-500">{resort.region}</p>
+                  {regionLabel && (
+                    <p className="text-sm text-gray-500">{regionLabel}</p>
                   )}
                 </div>
               </Popup>
