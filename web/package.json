@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "PRISMA_GENERATE_SKIP_AUTOINSTALL=1 prisma generate"
+    "db:sync-schema": "node -e \"const fs=require('fs');fs.mkdirSync('prisma',{recursive:true});fs.copyFileSync('../prisma/schema.prisma','prisma/schema.prisma');\"",
+    "db:generate": "npm run db:sync-schema && prisma generate",
+    "postinstall": "npm run db:generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
