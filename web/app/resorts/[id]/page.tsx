@@ -94,10 +94,10 @@ export default async function ResortPage({
       <header className="bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
           <Link
-            href="/"
+            href="/domaines"
             className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-blue-600 transition-colors"
           >
-            ← Retour
+            ← Les domaines
           </Link>
           <div className="flex items-start justify-between gap-4">
             <div>

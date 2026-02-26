@@ -168,6 +168,13 @@ type WeeklyAverageRow = {
   sampleYears: bigint;
 };
 
+type ResortsWeeklyProbabilityRow = {
+  resortId: number;
+  isoWeek: number;
+  averageOpenDays: number | null;
+  sampleYears: bigint;
+};
+
 export async function getResortAllYearsWeeklyAverageSnowStats(
   resortId: number,
   now = new Date()
@@ -218,4 +225,56 @@ export async function getResortAllYearsWeeklyAverageSnowStats(
     averageOpenDays: row.averageOpenDays,
     sampleYears: Number(row.sampleYears),
   }));
+}
+
+export async function getResortsWeekProbabilities(isoWeek: number): Promise<
+  Array<{
+    resortId: number;
+    isoWeek: number;
+    averageOpenDays: number | null;
+    probability: number | null;
+    sampleYears: number;
+    unknown: boolean;
+  }>
+> {
+  const normalizedIsoWeek = Math.max(1, Math.min(53, Math.trunc(isoWeek)));
+
+  const rows = await prisma.$queryRaw<ResortsWeeklyProbabilityRow[]>`
+    WITH per_year_week AS (
+      SELECT
+        sr."resortId"::int AS resort_id,
+        EXTRACT(ISOYEAR FROM sr."recordDate")::int AS iso_year,
+        EXTRACT(WEEK FROM sr."recordDate")::int AS iso_week,
+        COUNT(sr.id) FILTER (WHERE sr."openSlopes" > 0) AS open_days,
+        COUNT(sr.id) FILTER (WHERE sr."openSlopes" IS NOT NULL) AS known_days
+      FROM "SnowRecord" sr
+      GROUP BY resort_id, iso_year, iso_week
+    )
+    SELECT
+      r.id::int AS "resortId",
+      ${normalizedIsoWeek}::int AS "isoWeek",
+      AVG(pyw.open_days::double precision) FILTER (WHERE pyw.known_days > 0) AS "averageOpenDays",
+      COUNT(pyw.iso_year) FILTER (WHERE pyw.known_days > 0) AS "sampleYears"
+    FROM "Resort" r
+    LEFT JOIN per_year_week pyw
+      ON pyw.resort_id = r.id
+      AND pyw.iso_week = ${normalizedIsoWeek}
+    GROUP BY r.id
+    ORDER BY r.name ASC
+  `;
+
+  return rows.map((row) => {
+    const averageOpenDays = row.averageOpenDays;
+    const sampleYears = Number(row.sampleYears);
+    const unknown = averageOpenDays === null || sampleYears === 0;
+
+    return {
+      resortId: row.resortId,
+      isoWeek: row.isoWeek,
+      averageOpenDays,
+      probability: averageOpenDays === null ? null : averageOpenDays / 7,
+      sampleYears,
+      unknown,
+    };
+  });
 }

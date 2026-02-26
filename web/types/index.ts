@@ -20,3 +20,17 @@ export interface Resort {
   updatedAt: string;
   snowRecords: SnowRecord[];
 }
+
+export interface ResortWeekProbability {
+  resortId: number;
+  isoWeek: number;
+  probability: number | null;
+  averageOpenDays: number | null;
+  sampleYears: number;
+  unknown: boolean;
+}
+
+export interface ResortWithWeekProbability {
+  resort: Resort;
+  weekProbability: ResortWeekProbability;
+}
