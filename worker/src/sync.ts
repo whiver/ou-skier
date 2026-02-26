@@ -7,7 +7,7 @@ import { geocodeResort } from "./geocode";
  *
  * For each item:
  *  1. Upserts the Resort by name (creates if not found, updates metadata if changed).
- *  2. Updates the SnowRecord by (resortId, recordDate), or inserts if missing.
+ *  2. Upserts the SnowRecord by (resortId, recordDate).
  */
 export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
@@ -15,6 +15,18 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   let geocodedResorts = 0;
 
   for (const record of records) {
+    // Normalize recordDate to midnight UTC to avoid sub-day duplicates
+    const recordDate = new Date(
+      Date.UTC(
+        record.recordDate.getUTCFullYear(),
+        record.recordDate.getUTCMonth(),
+        record.recordDate.getUTCDate()
+      )
+    );
+    console.log(
+      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, date: ${recordDate.toISOString()})`
+    );
+
     const existingResort = await db.resort.findUnique({
       where: { name: record.name },
       select: { id: true },
@@ -53,42 +65,28 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
           });
         })();
 
-    // Normalize recordDate to midnight UTC to avoid sub-day duplicates
-    const recordDate = new Date(
-      Date.UTC(
-        record.recordDate.getUTCFullYear(),
-        record.recordDate.getUTCMonth(),
-        record.recordDate.getUTCDate()
-      )
-    );
-    const updatedSnowRecord = await db.snowRecord.updateMany({
+    await db.snowRecord.upsert({
       where: {
+        resortId_recordDate: {
+          resortId: resort.id,
+          recordDate,
+        },
+      },
+      create: {
         resortId: resort.id,
         recordDate,
+        openSlopes: record.openSlopes,
+        totalSlopes: record.totalSlopes,
+        notes: record.notes,
+        sourceUrl: record.sourceUrl,
       },
-      data: {
+      update: {
         openSlopes: record.openSlopes ?? undefined,
         totalSlopes: record.totalSlopes ?? undefined,
         notes: record.notes ?? undefined,
         sourceUrl: record.sourceUrl,
       },
     });
-
-    if (updatedSnowRecord.count === 0) {
-      console.log(
-        `→ New snow record to insert: ${resort.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, date: ${recordDate.toISOString()})`
-      );
-      await db.snowRecord.create({
-        data: {
-          resortId: resort.id,
-          recordDate,
-          openSlopes: record.openSlopes,
-          totalSlopes: record.totalSlopes,
-          notes: record.notes,
-          sourceUrl: record.sourceUrl,
-        },
-      });
-    }
   }
 
   console.log(`✓ Synced ${records.length} resort record(s).`);
