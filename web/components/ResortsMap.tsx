@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { Resort } from "@/types";
 import { formatRegionLabel } from "@/lib/region";
 
@@ -83,6 +84,12 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
                   {regionLabel && (
                     <p className="text-sm text-gray-500">{regionLabel}</p>
                   )}
+                  <Link
+                    href={`/resorts/${resort.id}`}
+                    className="mt-2 inline-block text-sm text-blue-600 underline hover:text-blue-700"
+                  >
+                    Voir les détails
+                  </Link>
                 </div>
               </Popup>
             </Marker>
