@@ -30,6 +30,9 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         })
       : await (async () => {
           createdResorts += 1;
+          console.log(
+            `→ New resort imported "${record.name}" (region: ${record.region ?? "n/a"}, domain: ${record.domainUrl ?? "n/a"}, open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, date: ${record.recordDate.toISOString()})`
+          );
           const geocoded = await geocodeResort(record.name, record.region);
 
           if (geocoded) {
@@ -58,6 +61,21 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         record.recordDate.getUTCDate()
       )
     );
+    const existingSnowRecord = await db.snowRecord.findUnique({
+      where: {
+        resortId_recordDate: {
+          resortId: resort.id,
+          recordDate,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existingSnowRecord) {
+      console.log(
+        `→ New snow record to insert: ${record.name} : ${record.openSlopes ?? "n/a"}, ${record.totalSlopes ?? "n/a"}, ${recordDate.toISOString()}`
+      );
+    }
 
     await db.snowRecord.upsert({
       where: {
