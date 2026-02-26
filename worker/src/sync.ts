@@ -15,6 +15,18 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   let geocodedResorts = 0;
 
   for (const record of records) {
+    // Normalize recordDate to midnight UTC to avoid sub-day duplicates
+    const recordDate = new Date(
+      Date.UTC(
+        record.recordDate.getUTCFullYear(),
+        record.recordDate.getUTCMonth(),
+        record.recordDate.getUTCDate()
+      )
+    );
+    console.log(
+      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, date: ${recordDate.toISOString()})`
+    );
+
     const existingResort = await db.resort.findUnique({
       where: { name: record.name },
       select: { id: true },
@@ -30,6 +42,9 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         })
       : await (async () => {
           createdResorts += 1;
+          console.log(
+            `→ New resort imported "${record.name}" (region: ${record.region ?? "n/a"}, domain: ${record.domainUrl ?? "n/a"}, notes: ${record.notes ?? "n/a"}, source: ${record.sourceUrl})`
+          );
           const geocoded = await geocodeResort(record.name, record.region);
 
           if (geocoded) {
@@ -49,15 +64,6 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
             },
           });
         })();
-
-    // Normalize recordDate to midnight UTC to avoid sub-day duplicates
-    const recordDate = new Date(
-      Date.UTC(
-        record.recordDate.getUTCFullYear(),
-        record.recordDate.getUTCMonth(),
-        record.recordDate.getUTCDate()
-      )
-    );
 
     await db.snowRecord.upsert({
       where: {
