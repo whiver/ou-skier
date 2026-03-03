@@ -100,8 +100,13 @@ export default function ResortsWeekProbabilityMap({
         className="h-full w-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url={`https://api.maptiler.com/maps/winter-v4/{z}/{x}/{y}.png?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`}
+        />
+        <TileLayer
+          attribution='Ski data &copy; <a href="https://www.opensnowmap.org">OpenSnowMap</a> CC-BY-SA'
+          url="https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png"
+          opacity={0.8}
         />
         {resorts.map((item) => {
           const { resort, weekProbability } = item;
