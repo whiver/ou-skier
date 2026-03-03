@@ -101,7 +101,7 @@ export default function ResortsWeekProbabilityMap({
       >
         <TileLayer
           attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://api.maptiler.com/maps/winter-v4/{z}/{x}/{y}.png?key=pzlZNaAYVvv0ljdkGrge"
+          url={`https://api.maptiler.com/maps/winter-v4/{z}/{x}/{y}.png?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`}
         />
         <TileLayer
           attribution='Ski data &copy; <a href="https://www.opensnowmap.org">OpenSnowMap</a> CC-BY-SA'
