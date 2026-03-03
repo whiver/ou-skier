@@ -100,8 +100,8 @@ export default function ResortsWeekProbabilityMap({
         className="h-full w-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles &copy; <a href="https://www.openstreetmap.fr">OpenStreetMap France</a>'
+          url="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
         />
         <TileLayer
           attribution='Ski data &copy; <a href="https://www.opensnowmap.org">OpenSnowMap</a> CC-BY-SA'
