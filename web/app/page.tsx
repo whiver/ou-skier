@@ -104,11 +104,11 @@ export default async function Home({
             </span>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Où skier à la meilleure période ?
+                Quand partir ?
               </h1>
               <p className="text-sm text-gray-500">
                 Comparez les domaines par probabilité d&apos;avoir au moins 1 piste
-                ouverte
+                ouverte dans la semaine sélectionnée
               </p>
             </div>
           </div>

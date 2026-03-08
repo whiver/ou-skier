@@ -29,9 +29,9 @@ export default async function DomainesPage() {
           <div className="flex items-center gap-3">
             <span className="text-4xl" aria-hidden="true">⛷️</span>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Les domaines</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Le bulletin du jour</h1>
               <p className="text-sm text-gray-500">
-                Conditions d&apos;enneigement des domaines nordiques français
+                Retrouvez les bulletins d'enneigement de la majorité des domaines skiables nordiques français, mis à jour quotidiennement.
               </p>
             </div>
           </div>

@@ -23,10 +23,10 @@ export default function RootLayout({
             </Link>
             <div className="flex items-center gap-4 text-sm">
               <Link href="/" className="text-gray-600 hover:text-blue-600">
-                Accueil
+                Quand partir ?
               </Link>
               <Link href="/domaines" className="text-gray-600 hover:text-blue-600">
-                Les domaines
+                Le bulletin du jour
               </Link>
             </div>
           </div>

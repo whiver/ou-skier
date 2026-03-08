@@ -97,7 +97,7 @@ export default async function ResortPage({
             href="/domaines"
             className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-blue-600 transition-colors"
           >
-            ← Les domaines
+            ← Le bulletin du jour
           </Link>
           <div className="flex items-start justify-between gap-4">
             <div>
