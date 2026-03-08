@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { formatRegionLabel } from "@/lib/region";
+import {
+  applyLeafletDefaultMarkerIcons,
+  createColorDotIconMap,
+} from "@/lib/mapMarkers";
 import type { ResortWithWeekProbability } from "@/types";
+import type { DivIcon } from "leaflet";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((module) => module.MapContainer),
@@ -44,26 +49,12 @@ export default function ResortsWeekProbabilityMap({
   resorts,
   weekLabel,
 }: ResortsWeekProbabilityMapProps) {
-  const [iconMap, setIconMap] = useState<Record<string, unknown> | null>(null);
+  const [iconMap, setIconMap] = useState<Record<string, DivIcon> | null>(null);
 
   useEffect(() => {
     const createIcons = async () => {
       const leaflet = await import("leaflet");
-
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl: new URL(
-          "leaflet/dist/images/marker-icon-2x.png",
-          import.meta.url
-        ).toString(),
-        iconUrl: new URL(
-          "leaflet/dist/images/marker-icon.png",
-          import.meta.url
-        ).toString(),
-        shadowUrl: new URL(
-          "leaflet/dist/images/marker-shadow.png",
-          import.meta.url
-        ).toString(),
-      });
+      applyLeafletDefaultMarkerIcons(leaflet);
 
       const colors = [
         "bg-emerald-100",
@@ -74,18 +65,7 @@ export default function ResortsWeekProbabilityMap({
         "bg-gray-200",
       ];
 
-      const nextMap: Record<string, unknown> = {};
-      colors.forEach((colorClass) => {
-        nextMap[colorClass] = leaflet.divIcon({
-          className: "",
-          html: `<span class=\"block h-4 w-4 rounded-full border border-white ${colorClass} shadow-sm\"></span>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-          popupAnchor: [0, -8],
-        });
-      });
-
-      setIconMap(nextMap);
+      setIconMap(createColorDotIconMap(leaflet, colors));
     };
 
     createIcons();
@@ -122,7 +102,7 @@ export default function ResortsWeekProbabilityMap({
             weekProbability.probability,
             weekProbability.unknown
           );
-          const icon = iconMap?.[colorClass] as never | undefined;
+          const icon = iconMap?.[colorClass];
 
           return (
             <Marker

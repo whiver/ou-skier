@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { Resort } from "@/types";
 import { formatRegionLabel } from "@/lib/region";
+import {
+  applyLeafletDefaultMarkerIcons,
+  createColorDotIconMap,
+} from "@/lib/mapMarkers";
+import type { DivIcon } from "leaflet";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((module) => module.MapContainer),
@@ -30,25 +35,61 @@ type ResortsMapProps = {
 const defaultCenter: [number, number] = [46.6, 2.2];
 const defaultZoom = 6;
 
+const OPEN_COLOR_CLASS = "bg-emerald-500";
+const PARTIAL_COLOR_CLASS = "bg-amber-300";
+const CLOSED_COLOR_CLASS = "bg-red-500";
+const UNKNOWN_COLOR_CLASS = "bg-gray-200";
+
+function getDailyOpenState(
+  resort: Resort
+): "open" | "partial" | "closed" | "unknown" {
+  const latest = resort.snowRecords[0];
+  if (!latest || latest.openSlopes === null) {
+    return "unknown";
+  }
+  if (latest.openSlopes <= 0) {
+    return "closed";
+  }
+  if (latest.totalSlopes === null || latest.totalSlopes <= 0) {
+    return "unknown";
+  }
+
+  const openRatio = latest.openSlopes / latest.totalSlopes;
+  return openRatio >= 0.5 ? "open" : "partial";
+}
+
+function getDailyOpenStateColorClass(resort: Resort): string {
+  const state = getDailyOpenState(resort);
+  if (state === "open") return OPEN_COLOR_CLASS;
+  if (state === "partial") return PARTIAL_COLOR_CLASS;
+  if (state === "closed") return CLOSED_COLOR_CLASS;
+  return UNKNOWN_COLOR_CLASS;
+}
+
+function getDailyOpenStateLabel(resort: Resort): string {
+  const state = getDailyOpenState(resort);
+  if (state === "open") return "Au moins 50% de pistes ouvertes";
+  if (state === "partial") return "Moins de 50% de pistes ouvertes";
+  if (state === "closed") return "Fermé";
+  return "Statut inconnu";
+}
+
 export default function ResortsMap({ resorts }: ResortsMapProps) {
+  const [iconMap, setIconMap] = useState<Record<string, DivIcon> | null>(null);
+
   useEffect(() => {
     const applyMarkerIcons = async () => {
       const leaflet = await import("leaflet");
+      applyLeafletDefaultMarkerIcons(leaflet);
 
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl: new URL(
-          "leaflet/dist/images/marker-icon-2x.png",
-          import.meta.url
-        ).toString(),
-        iconUrl: new URL(
-          "leaflet/dist/images/marker-icon.png",
-          import.meta.url
-        ).toString(),
-        shadowUrl: new URL(
-          "leaflet/dist/images/marker-shadow.png",
-          import.meta.url
-        ).toString(),
-      });
+      setIconMap(
+        createColorDotIconMap(leaflet, [
+          OPEN_COLOR_CLASS,
+          PARTIAL_COLOR_CLASS,
+          CLOSED_COLOR_CLASS,
+          UNKNOWN_COLOR_CLASS,
+        ])
+      );
     };
 
     applyMarkerIcons();
@@ -77,11 +118,21 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
           }
 
           const regionLabel = formatRegionLabel(resort.region);
+          const colorClass = getDailyOpenStateColorClass(resort);
+          const icon = iconMap?.[colorClass];
+          const latest = resort.snowRecords[0];
+          const openSlopesLabel =
+            latest && latest.openSlopes !== null
+              ? `${latest.openSlopes}${
+                  latest.totalSlopes !== null ? `/${latest.totalSlopes}` : ""
+                }`
+              : "Inconnu";
 
           return (
             <Marker
               key={resort.id}
               position={[resort.latitude, resort.longitude]}
+              {...(icon ? { icon } : {})}
             >
               <Popup>
                 <div className="min-w-44">
@@ -89,6 +140,10 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
                   {regionLabel && (
                     <p className="text-sm text-gray-500">{regionLabel}</p>
                   )}
+                  <p className="mt-2 text-sm text-gray-700">
+                    Pistes ouvertes : <span className="font-semibold">{openSlopesLabel}</span>
+                  </p>
+                  <p className="text-xs text-gray-500">{getDailyOpenStateLabel(resort)}</p>
                   <Link
                     href={`/resorts/${resort.id}`}
                     className="mt-2 inline-block text-sm text-blue-600 underline hover:text-blue-700"

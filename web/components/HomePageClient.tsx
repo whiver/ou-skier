@@ -178,7 +178,19 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
       ) : (
         <div className="mt-6">
           {mappableResorts.length > 0 ? (
-            <ResortsMap resorts={mappableResorts} />
+            <>
+              <ResortsMap resorts={mappableResorts} />
+              <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
+                <span>Fermé</span>
+                <span className="h-4 w-4 rounded-sm bg-red-500" />
+                <span>&lt; 50%</span>
+                <span className="h-4 w-4 rounded-sm bg-amber-300" />
+                <span>≥ 50%</span>
+                <span className="h-4 w-4 rounded-sm bg-emerald-500" />
+                <span className="ml-2">Inconnu</span>
+                <span className="h-4 w-4 rounded-sm bg-gray-200" />
+              </div>
+            </>
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
               <p className="text-sm text-gray-500">

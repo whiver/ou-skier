@@ -7,7 +7,7 @@ type DayCell = {
 
 function getDayStateClass(state: ResortDaySnowStat["state"]): string {
   if (state === "open") return "bg-emerald-500";
-  if (state === "closed") return "bg-amber-200";
+  if (state === "closed") return "bg-red-500";
   return "bg-gray-200";
 }
 
@@ -131,7 +131,7 @@ export default function ResortDailySnowHeatmap({
 
       <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
         <span>Fermé</span>
-        <span className="h-3 w-3 rounded-sm bg-amber-200" />
+        <span className="h-3 w-3 rounded-sm bg-red-500" />
         <span>Ouvert</span>
         <span className="h-3 w-3 rounded-sm bg-emerald-500" />
         <span>Inconnu</span>
