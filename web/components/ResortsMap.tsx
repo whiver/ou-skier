@@ -66,14 +66,6 @@ function getDailyOpenStateColorClass(resort: Resort): string {
   return UNKNOWN_COLOR_CLASS;
 }
 
-function getDailyOpenStateLabel(resort: Resort): string {
-  const state = getDailyOpenState(resort);
-  if (state === "open") return "Au moins 50% de pistes ouvertes";
-  if (state === "partial") return "Moins de 50% de pistes ouvertes";
-  if (state === "closed") return "Fermé";
-  return "Statut inconnu";
-}
-
 export default function ResortsMap({ resorts }: ResortsMapProps) {
   const [iconMap, setIconMap] = useState<Record<string, DivIcon> | null>(null);
 
@@ -143,7 +135,6 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
                   <p className="mt-2 text-sm text-gray-700">
                     Pistes ouvertes : <span className="font-semibold">{openSlopesLabel}</span>
                   </p>
-                  <p className="text-xs text-gray-500">{getDailyOpenStateLabel(resort)}</p>
                   <Link
                     href={`/resorts/${resort.id}`}
                     className="mt-2 inline-block text-sm text-blue-600 underline hover:text-blue-700"
