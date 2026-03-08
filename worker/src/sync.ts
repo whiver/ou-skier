@@ -13,10 +13,13 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
   let createdResorts = 0;
   let geocodedResorts = 0;
+  const now = new Date();
+  const ingestionRecordDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
 
   for (const record of records) {
-    // Normalize recordDate to midnight UTC to avoid sub-day duplicates
-    const recordDate = new Date(
+    const sourceRecordDate = new Date(
       Date.UTC(
         record.recordDate.getUTCFullYear(),
         record.recordDate.getUTCMonth(),
@@ -24,7 +27,7 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
       )
     );
     console.log(
-      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, date: ${recordDate.toISOString()})`
+      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()})`
     );
 
     const existingResort = await db.resort.findUnique({
@@ -69,16 +72,17 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
       where: {
         resortId_recordDate: {
           resortId: resort.id,
-          recordDate,
+          recordDate: ingestionRecordDate,
         },
       },
       create: {
         resortId: resort.id,
-        recordDate,
+        recordDate: ingestionRecordDate,
         openSlopes: record.openSlopes,
         totalSlopes: record.totalSlopes,
         notes: record.notes,
         sourceUrl: record.sourceUrl,
+        createdAt: ingestionRecordDate,
       },
       update: {
         openSlopes: record.openSlopes ?? undefined,

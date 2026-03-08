@@ -14,7 +14,11 @@ async function syncResorts(records) {
     const db = (0, db_1.getDb)();
     let createdResorts = 0;
     let geocodedResorts = 0;
+    const now = new Date();
+    const ingestionRecordDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     for (const record of records) {
+        const sourceRecordDate = new Date(Date.UTC(record.recordDate.getUTCFullYear(), record.recordDate.getUTCMonth(), record.recordDate.getUTCDate()));
+        console.log(`→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()})`);
         const existingResort = await db.resort.findUnique({
             where: { name: record.name },
             select: { id: true },
@@ -29,6 +33,7 @@ async function syncResorts(records) {
             })
             : await (async () => {
                 createdResorts += 1;
+                console.log(`→ New resort imported "${record.name}" (region: ${record.region ?? "n/a"}, domain: ${record.domainUrl ?? "n/a"}, notes: ${record.notes ?? "n/a"}, source: ${record.sourceUrl})`);
                 const geocoded = await (0, geocode_1.geocodeResort)(record.name, record.region);
                 if (geocoded) {
                     geocodedResorts += 1;
@@ -44,22 +49,21 @@ async function syncResorts(records) {
                     },
                 });
             })();
-        // Normalize recordDate to midnight UTC to avoid sub-day duplicates
-        const recordDate = new Date(Date.UTC(record.recordDate.getUTCFullYear(), record.recordDate.getUTCMonth(), record.recordDate.getUTCDate()));
         await db.snowRecord.upsert({
             where: {
                 resortId_recordDate: {
                     resortId: resort.id,
-                    recordDate,
+                    recordDate: ingestionRecordDate,
                 },
             },
             create: {
                 resortId: resort.id,
-                recordDate,
+                recordDate: ingestionRecordDate,
                 openSlopes: record.openSlopes,
                 totalSlopes: record.totalSlopes,
                 notes: record.notes,
                 sourceUrl: record.sourceUrl,
+                createdAt: ingestionRecordDate,
             },
             update: {
                 openSlopes: record.openSlopes ?? undefined,
