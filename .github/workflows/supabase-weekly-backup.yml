@@ -1,0 +1,49 @@
+name: Supabase weekly backup
+
+on:
+  schedule:
+    - cron: "0 2 * * 0" # Every Sunday at 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: Production
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create data backup
+        run: |
+          set -euo pipefail
+          mkdir -p backups/supabase
+          BACKUP_FILE="backups/supabase/data-$(date -u +%Y-%m-%d).sql.gz"
+          pg_dump "$DATABASE_URL" --data-only --no-owner --no-privileges --verbose | gzip -9 > "$BACKUP_FILE"
+
+      - name: Keep only last 6 weekly backups
+        run: |
+          set -euo pipefail
+          ls -1t backups/supabase/data-*.sql.gz 2>/dev/null | tail -n +7 | xargs -r rm -f
+
+      - name: Commit backup if changed
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain backups/supabase)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add backups/supabase
+            git commit -m "chore: weekly Supabase backup ($(date -u +%Y-%m-%d))"
+            git push
+          else
+            echo "No backup changes to commit."
+          fi

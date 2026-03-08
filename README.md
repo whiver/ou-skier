@@ -116,6 +116,21 @@ The worker can be deployed as:
 - A standalone Node.js process on any server
 - A scheduled GitHub Actions workflow
 
+### Automated weekly database backup (Supabase)
+
+This repository includes a GitHub Actions workflow at `.github/workflows/supabase-weekly-backup.yml` that:
+
+- runs every Sunday at 02:00 UTC,
+- dumps Supabase/PostgreSQL **data only** to `backups/supabase/data-YYYY-MM-DD.sql.gz`,
+- keeps only the latest 6 weekly backups,
+- commits and pushes backup changes automatically.
+
+Required GitHub secret:
+
+- `DATABASE_URL`: your Supabase Postgres connection string (the same one used by the app/worker).
+
+You can also trigger the backup manually from the Actions tab using `workflow_dispatch`.
+
 ## Data Source
 
 Snow condition data is sourced from [Nordic France](https://www.nordicfrance.fr/) — the official portal for Nordic skiing in France.
