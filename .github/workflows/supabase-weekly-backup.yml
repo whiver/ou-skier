@@ -20,15 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
       - name: Create data backup
         run: |
           set -euo pipefail
           mkdir -p backups/supabase
           BACKUP_FILE="backups/supabase/data-$(date -u +%Y-%m-%d).sql.gz"
-          pg_dump "$DATABASE_URL" --data-only --no-owner --no-privileges --verbose | gzip -9 > "$BACKUP_FILE"
+          docker run --rm \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e BACKUP_FILE="$BACKUP_FILE" \
+            -v "$PWD:/work" \
+            -w /work \
+            postgres:17-alpine \
+            sh -c 'pg_dump "$DATABASE_URL" --data-only --no-owner --no-privileges --verbose | gzip -9 > "$BACKUP_FILE"'
 
       - name: Keep only last 6 weekly backups
         run: |
