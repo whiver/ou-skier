@@ -98,6 +98,10 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
         <TileLayer
           attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={`https://api.maptiler.com/maps/winter-v4/{z}/{x}/{y}.png?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`}
+          tileSize={512}
+          zoomOffset={-1}
+          minZoom={1}
+          crossOrigin={true}
         />
         <TileLayer
           attribution='Ski data &copy; <a href="https://www.opensnowmap.org">OpenSnowMap</a> CC-BY-SA'
