@@ -2,6 +2,7 @@ import "dotenv/config";
 import { fetchNordicFranceBulletin } from "./fetcher";
 import { syncResorts } from "./sync";
 import { disconnectDb } from "./db";
+import { revalidateWebCache } from "./revalidate";
 
 async function main(): Promise<void> {
   console.log("🎿  ou-skier data ingestion worker starting…");
@@ -17,6 +18,12 @@ async function main(): Promise<void> {
   } else {
     console.log(`→ Parsed ${records.length} resort(s) from bulletin.`);
     await syncResorts(records);
+
+    try {
+      await revalidateWebCache();
+    } catch (error) {
+      console.warn("⚠  Cache invalidation failed:", error);
+    }
   }
 
   console.log("✅  Done.");

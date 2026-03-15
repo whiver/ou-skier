@@ -82,6 +82,18 @@ Both the web app and worker need a `DATABASE_URL` pointing to the same PostgreSQ
 DATABASE_URL=postgresql://user:password@host:5432/ou_skier
 ```
 
+For cache freshness after ingestion:
+
+- In `web/`, set `REVALIDATE_SECRET`.
+- In `worker/`, set:
+
+```
+WEB_REVALIDATE_URL=https://ouskier.vercel.app/api/revalidate
+WEB_REVALIDATE_SECRET=<same value as REVALIDATE_SECRET>
+```
+
+After a successful worker run, the worker calls this endpoint so `/domaines` and resort detail pages are invalidated immediately.
+
 ### Running the Worker
 
 The worker fetches the latest [Nordic France](https://www.nordicfrance.fr/le-bulletin-neige/) snow bulletin and upserts the data into the database.
@@ -128,6 +140,11 @@ This repository includes a GitHub Actions workflow at `.github/workflows/supabas
 Required GitHub secret:
 
 - `DATABASE_URL`: your Supabase Postgres connection string (the same one used by the app/worker).
+
+For daily ingestion cache invalidation, add these GitHub Action secrets too:
+
+- `WEB_REVALIDATE_URL`: typically `https://ouskier.vercel.app/api/revalidate`
+- `REVALIDATE_SECRET`: same value as `web/REVALIDATE_SECRET`
 
 You can also trigger the backup manually from the Actions tab using `workflow_dispatch`.
 

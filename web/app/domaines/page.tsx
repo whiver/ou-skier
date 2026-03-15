@@ -2,6 +2,8 @@ import HomePageClient from "@/components/HomePageClient";
 import { Resort } from "@/types";
 import { prisma } from "@/lib/prisma";
 
+export const revalidate = 86400;
+
 async function getResorts(): Promise<Resort[]> {
   try {
     const resorts = await prisma.resort.findMany({

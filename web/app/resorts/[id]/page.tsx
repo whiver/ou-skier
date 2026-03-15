@@ -9,6 +9,8 @@ import {
 import ResortSnowHeatmap from "@/components/ResortSnowHeatmap";
 import { Resort } from "@/types";
 
+export const revalidate = 86400;
+
 async function getResort(id: number): Promise<Resort | null> {
   try {
     const resort = await prisma.resort.findUnique({
