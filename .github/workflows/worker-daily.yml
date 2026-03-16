@@ -17,7 +17,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       WEB_REVALIDATE_URL: ${{ secrets.WEB_REVALIDATE_URL }}
-      WEB_REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+      WEB_REVALIDATE_SECRET: ${{ secrets.WEB_REVALIDATE_SECRET }}
 
     steps:
       - name: Checkout repository
