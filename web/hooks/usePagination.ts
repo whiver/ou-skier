@@ -53,6 +53,6 @@ export function usePagination<T>(
     hasMore,
     showMore,
     totalCount: items.length,
-    visibleCount: visibleItems.length,
+    visibleCount: Math.min(visibleCount, items.length),
   };
 }
