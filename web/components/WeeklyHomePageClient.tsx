@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRegionLabel } from "@/lib/region";
+import { usePagination } from "@/hooks/usePagination";
 import ResortsWeekProbabilityMap from "@/components/ResortsWeekProbabilityMap";
 import ResortWeekProbabilityCard from "@/components/ResortWeekProbabilityCard";
 import type { Resort, ResortWeekProbability, ResortWithWeekProbability } from "@/types";
@@ -99,6 +100,9 @@ export default function WeeklyHomePageClient({
       return matchesSearch && matchesRegion;
     });
   }, [resortsWithProbability, searchText, selectedRegions]);
+
+  const { visibleItems: paginatedResorts, hasMore, showMore } =
+    usePagination(filteredResorts);
 
   const mappableResorts = useMemo(() => {
     return filteredResorts.filter(
@@ -246,14 +250,27 @@ export default function WeeklyHomePageClient({
           </p>
         </div>
       ) : viewMode === "list" ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-          {filteredResorts.map((item) => (
-            <ResortWeekProbabilityCard
-              key={item.resort.id}
-              item={item}
-              weekLabel={weekLabel}
-            />
-          ))}
+        <div className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+            {paginatedResorts.map((item) => (
+              <ResortWeekProbabilityCard
+                key={item.resort.id}
+                item={item}
+                weekLabel={weekLabel}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={showMore}
+                className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+              >
+                Afficher plus de domaines
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-6">
