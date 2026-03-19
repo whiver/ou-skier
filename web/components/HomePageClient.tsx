@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ResortCard from "@/components/ResortCard";
 import ResortsMap from "@/components/ResortsMap";
 import { formatRegionLabel } from "@/lib/region";
+import { usePagination } from "@/hooks/usePagination";
 import type { Resort } from "@/types";
 
 type HomePageClientProps = {
@@ -47,6 +48,9 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
       return matchesSearch && matchesRegion;
     });
   }, [resorts, searchText, selectedRegions]);
+
+  const { visibleItems: paginatedResorts, hasMore, showMore } =
+    usePagination(filteredResorts);
 
   const mappableResorts = useMemo(() => {
     return filteredResorts.filter(
@@ -172,10 +176,23 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
           </p>
         </div>
       ) : viewMode === "list" ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-          {filteredResorts.map((resort) => (
-            <ResortCard key={resort.id} resort={resort} />
-          ))}
+        <div className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+            {paginatedResorts.map((resort) => (
+              <ResortCard key={resort.id} resort={resort} />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={showMore}
+                className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+              >
+                Afficher plus de domaines
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-6">
