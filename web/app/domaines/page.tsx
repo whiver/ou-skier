@@ -21,8 +21,28 @@ async function getResorts(): Promise<Resort[]> {
   }
 }
 
+async function getLastUpdateDate(): Promise<string | null> {
+  try {
+    const latest = await prisma.snowRecord.findFirst({
+      orderBy: { recordDate: "desc" },
+      select: { recordDate: true },
+    });
+    if (!latest) return null;
+    return latest.recordDate.toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default async function DomainesPage() {
-  const resorts = await getResorts();
+  const [resorts, lastUpdateDate] = await Promise.all([
+    getResorts(),
+    getLastUpdateDate(),
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
@@ -41,7 +61,7 @@ export default async function DomainesPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <HomePageClient resorts={resorts} />
+        <HomePageClient resorts={resorts} lastUpdateDate={lastUpdateDate} />
       </main>
 
       <footer className="mt-16 border-t border-gray-100 py-6 text-center text-xs text-gray-400">
