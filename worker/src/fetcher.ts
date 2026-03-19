@@ -57,9 +57,17 @@ function parseFrenchDayMonth(raw: string | undefined): Date {
 
   const now = new Date();
   const year = now.getUTCFullYear();
-  const parsed = new Date(Date.UTC(year, month - 1, day));
+  let parsed = new Date(Date.UTC(year, month - 1, day));
 
   if (Number.isNaN(parsed.getTime())) return now;
+
+  // The source only provides day/month without a year. If the resulting date
+  // is in the future it most likely refers to the previous year (e.g. a
+  // "30/12" update parsed in March 2026 should resolve to 2025-12-30).
+  if (parsed.getTime() > now.getTime()) {
+    parsed = new Date(Date.UTC(year - 1, month - 1, day));
+  }
+
   return parsed;
 }
 

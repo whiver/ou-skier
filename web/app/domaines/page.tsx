@@ -23,7 +23,9 @@ async function getResorts(): Promise<Resort[]> {
 
 async function getLastUpdateDate(): Promise<string | null> {
   try {
+    const now = new Date();
     const latest = await prisma.snowRecord.findFirst({
+      where: { recordDate: { lte: now } },
       orderBy: { recordDate: "desc" },
       select: { recordDate: true },
     });
