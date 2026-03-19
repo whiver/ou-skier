@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import ResortCard from "@/components/ResortCard";
 import ResortsMap from "@/components/ResortsMap";
 import { formatRegionLabel } from "@/lib/region";
+import { sortFavoritesFirst, useFavoriteResorts } from "@/hooks/useFavoriteResorts";
 import { usePagination } from "@/hooks/usePagination";
 import type { Resort } from "@/types";
 import { useState } from "react";
@@ -16,6 +17,7 @@ type HomePageClientProps = {
 export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClientProps) {
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const { favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
 
   const regions = useMemo(() => {
     return Array.from(
@@ -47,14 +49,22 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
     });
   }, [resorts, searchText, selectedRegions]);
 
+  const orderedResorts = useMemo(() => {
+    return sortFavoritesFirst(
+      filteredResorts,
+      (resort) => resort.id,
+      favoriteResortIdsSet,
+    );
+  }, [filteredResorts, favoriteResortIdsSet]);
+
   const { visibleItems: paginatedResorts, hasMore, showMore } =
-    usePagination(filteredResorts);
+    usePagination(orderedResorts);
 
   const mappableResorts = useMemo(() => {
-    return filteredResorts.filter(
+    return orderedResorts.filter(
       (resort) => resort.latitude !== null && resort.longitude !== null
     );
-  }, [filteredResorts]);
+  }, [orderedResorts]);
 
   const toggleRegion = (region: string) => {
     setSelectedRegions((currentRegions) => {
@@ -87,7 +97,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
     <>
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
         <p className="text-sm text-gray-500">
-          {filteredResorts.length} domaine{filteredResorts.length > 1 ? "s" : ""}
+          {orderedResorts.length} domaine{orderedResorts.length > 1 ? "s" : ""}
           {` (${mappableResorts.length} avec coordonnées)`}
           {lastUpdateDate ? ` · mis à jour le ${lastUpdateDate}` : ""}
         </p>
@@ -138,7 +148,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
         </div>
       </section>
 
-      {filteredResorts.length === 0 ? (
+      {orderedResorts.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
           <p className="text-sm text-gray-500">
             Aucun domaine ne correspond aux filtres actuels.
@@ -174,7 +184,12 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
           <div className="mt-6">
             <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
               {paginatedResorts.map((resort) => (
-                <ResortCard key={resort.id} resort={resort} />
+                <ResortCard
+                  key={resort.id}
+                  resort={resort}
+                  isFavorite={favoriteResortIdsSet.has(resort.id)}
+                  onToggleFavorite={toggleFavoriteResort}
+                />
               ))}
             </div>
             {hasMore && (

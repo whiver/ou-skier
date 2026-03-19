@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRegionLabel } from "@/lib/region";
+import { sortFavoritesFirst, useFavoriteResorts } from "@/hooks/useFavoriteResorts";
 import { usePagination } from "@/hooks/usePagination";
 import ResortsWeekProbabilityMap from "@/components/ResortsWeekProbabilityMap";
 import ResortWeekProbabilityCard from "@/components/ResortWeekProbabilityCard";
@@ -39,6 +40,7 @@ export default function WeeklyHomePageClient({
 
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const { favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
 
   const probabilityByResortId = useMemo(() => {
     return new Map(probabilities.map((entry) => [entry.resortId, entry]));
@@ -99,14 +101,22 @@ export default function WeeklyHomePageClient({
     });
   }, [resortsWithProbability, searchText, selectedRegions]);
 
+  const orderedResorts = useMemo(() => {
+    return sortFavoritesFirst(
+      filteredResorts,
+      (item) => item.resort.id,
+      favoriteResortIdsSet,
+    );
+  }, [filteredResorts, favoriteResortIdsSet]);
+
   const { visibleItems: paginatedResorts, hasMore, showMore } =
-    usePagination(filteredResorts);
+    usePagination(orderedResorts);
 
   const mappableResorts = useMemo(() => {
-    return filteredResorts.filter(
+    return orderedResorts.filter(
       ({ resort }) => resort.latitude !== null && resort.longitude !== null
     );
-  }, [filteredResorts]);
+  }, [orderedResorts]);
 
   const toggleRegion = (region: string) => {
     setSelectedRegions((currentRegions) => {
@@ -209,12 +219,12 @@ export default function WeeklyHomePageClient({
         </div>
 
         <p className="mt-4 text-sm text-gray-500">
-          {filteredResorts.length} domaine{filteredResorts.length > 1 ? "s" : ""}
+          {orderedResorts.length} domaine{orderedResorts.length > 1 ? "s" : ""}
           {` (${mappableResorts.length} avec coordonnées)`}
         </p>
       </section>
 
-      {filteredResorts.length === 0 ? (
+      {orderedResorts.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
           <p className="text-sm text-gray-500">
             Aucun domaine ne correspond aux filtres actuels.
@@ -255,6 +265,8 @@ export default function WeeklyHomePageClient({
                   key={item.resort.id}
                   item={item}
                   weekLabel={weekLabel}
+                  isFavorite={favoriteResortIdsSet.has(item.resort.id)}
+                  onToggleFavorite={toggleFavoriteResort}
                 />
               ))}
             </div>

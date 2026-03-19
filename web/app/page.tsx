@@ -55,7 +55,7 @@ export default async function Home() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Le bulletin du jour</h1>
               <p className="text-sm text-gray-500">
-                Retrouvez les bulletins d'enneigement de la majorité des domaines skiables nordiques français, mis à jour quotidiennement.
+                Retrouvez les bulletins d&apos;enneigement de la majorité des domaines skiables nordiques français, mis à jour quotidiennement.
               </p>
             </div>
           </div>

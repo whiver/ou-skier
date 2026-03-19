@@ -3,8 +3,17 @@
 import Link from "next/link";
 import { Resort } from "@/types";
 import { formatRegionLabel } from "@/lib/region";
+import FavoriteResortButton from "@/components/FavoriteResortButton";
 
-export default function ResortCard({ resort }: { resort: Resort }) {
+export default function ResortCard({
+  resort,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  resort: Resort;
+  isFavorite: boolean;
+  onToggleFavorite: (resortId: number) => void;
+}) {
   const latest = resort.snowRecords[0] ?? null;
   const regionLabel = formatRegionLabel(resort.region);
   const recordDate = latest
@@ -29,19 +38,26 @@ export default function ResortCard({ resort }: { resort: Resort }) {
               </p>
             )}
           </div>
-          {resort.domainUrl && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
-              }}
-              className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
-            >
-              Site officiel
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <FavoriteResortButton
+              isFavorite={isFavorite}
+              resortName={resort.name}
+              onToggleFavorite={() => onToggleFavorite(resort.id)}
+            />
+            {resort.domainUrl && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
+                }}
+                className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
+              >
+                Site officiel
+              </button>
+            )}
+          </div>
         </div>
 
         {latest ? (

@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { formatRegionLabel } from "@/lib/region";
+import FavoriteResortButton from "@/components/FavoriteResortButton";
 import type { ResortWithWeekProbability } from "@/types";
 
 export default function ResortWeekProbabilityCard({
   item,
   weekLabel,
+  isFavorite,
+  onToggleFavorite,
 }: {
   item: ResortWithWeekProbability;
   weekLabel: string;
+  isFavorite: boolean;
+  onToggleFavorite: (resortId: number) => void;
 }) {
   const { resort, weekProbability } = item;
   const regionLabel = formatRegionLabel(resort.region);
@@ -24,19 +29,26 @@ export default function ResortWeekProbabilityCard({
             </h2>
             {regionLabel && <p className="mt-0.5 text-sm text-gray-500">{regionLabel}</p>}
           </div>
-          {resort.domainUrl && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
-              }}
-              className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
-            >
-              Site officiel
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <FavoriteResortButton
+              isFavorite={isFavorite}
+              resortName={resort.name}
+              onToggleFavorite={() => onToggleFavorite(resort.id)}
+            />
+            {resort.domainUrl && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
+                }}
+                className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
+              >
+                Site officiel
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
