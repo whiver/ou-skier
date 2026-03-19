@@ -8,11 +8,12 @@ import type { Resort } from "@/types";
 
 type HomePageClientProps = {
   resorts: Resort[];
+  lastUpdateDate?: string | null;
 };
 
 type ViewMode = "list" | "map";
 
-export default function HomePageClient({ resorts }: HomePageClientProps) {
+export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
@@ -114,6 +115,7 @@ export default function HomePageClient({ resorts }: HomePageClientProps) {
             {viewMode === "map"
               ? ` (${mappableResorts.length} avec coordonnées)`
               : ""}
+            {lastUpdateDate ? ` · mis à jour le ${lastUpdateDate}` : ""}
           </p>
         </div>
 
