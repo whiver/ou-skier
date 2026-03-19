@@ -8,6 +8,7 @@ import { formatRegionLabel } from "@/lib/region";
 import {
   applyLeafletDefaultMarkerIcons,
   createColorDotIconMap,
+  createColorShapeIconMap,
 } from "@/lib/mapMarkers";
 import type { DivIcon } from "leaflet";
 
@@ -30,6 +31,7 @@ const Popup = dynamic(
 
 type ResortsMapProps = {
   resorts: Resort[];
+  favoriteResortIds: ReadonlySet<number>;
 };
 
 const defaultCenter: [number, number] = [46.6, 2.2];
@@ -66,8 +68,12 @@ function getDailyOpenStateColorClass(resort: Resort): string {
   return UNKNOWN_COLOR_CLASS;
 }
 
-export default function ResortsMap({ resorts }: ResortsMapProps) {
+export default function ResortsMap({
+  resorts,
+  favoriteResortIds,
+}: ResortsMapProps) {
   const [iconMap, setIconMap] = useState<Record<string, DivIcon> | null>(null);
+  const [favoriteIconMap, setFavoriteIconMap] = useState<Record<string, DivIcon> | null>(null);
 
   useEffect(() => {
     const applyMarkerIcons = async () => {
@@ -81,6 +87,18 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
           CLOSED_COLOR_CLASS,
           UNKNOWN_COLOR_CLASS,
         ])
+      );
+      setFavoriteIconMap(
+        createColorShapeIconMap(
+          leaflet,
+          [
+            OPEN_COLOR_CLASS,
+            PARTIAL_COLOR_CLASS,
+            CLOSED_COLOR_CLASS,
+            UNKNOWN_COLOR_CLASS,
+          ],
+          "star",
+        )
       );
     };
 
@@ -115,7 +133,10 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
 
           const regionLabel = formatRegionLabel(resort.region);
           const colorClass = getDailyOpenStateColorClass(resort);
-          const icon = iconMap?.[colorClass];
+          const isFavorite = favoriteResortIds.has(resort.id);
+          const icon = isFavorite
+            ? favoriteIconMap?.[colorClass]
+            : iconMap?.[colorClass];
           const latest = resort.snowRecords[0];
           const openSlopesLabel =
             latest && latest.openSlopes !== null
@@ -128,6 +149,7 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
             <Marker
               key={resort.id}
               position={[resort.latitude, resort.longitude]}
+              zIndexOffset={isFavorite ? 1000 : 0}
               {...(icon ? { icon } : {})}
             >
               <Popup>
@@ -135,6 +157,11 @@ export default function ResortsMap({ resorts }: ResortsMapProps) {
                   <p className="font-semibold text-gray-900">{resort.name}</p>
                   {regionLabel && (
                     <p className="text-sm text-gray-500">{regionLabel}</p>
+                  )}
+                  {isFavorite && (
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
+                      Favori
+                    </p>
                   )}
                   <p className="mt-2 text-sm text-gray-700">
                     Pistes ouvertes : <span className="font-semibold">{openSlopesLabel}</span>

@@ -7,6 +7,7 @@ import { formatRegionLabel } from "@/lib/region";
 import {
   applyLeafletDefaultMarkerIcons,
   createColorDotIconMap,
+  createColorShapeIconMap,
 } from "@/lib/mapMarkers";
 import type { ResortWithWeekProbability } from "@/types";
 import type { DivIcon } from "leaflet";
@@ -31,6 +32,7 @@ const Popup = dynamic(
 type ResortsWeekProbabilityMapProps = {
   resorts: ResortWithWeekProbability[];
   weekLabel: string;
+  favoriteResortIds: ReadonlySet<number>;
 };
 
 const defaultCenter: [number, number] = [46.6, 2.2];
@@ -48,8 +50,10 @@ function getProbabilityClass(probability: number | null, unknown: boolean): stri
 export default function ResortsWeekProbabilityMap({
   resorts,
   weekLabel,
+  favoriteResortIds,
 }: ResortsWeekProbabilityMapProps) {
   const [iconMap, setIconMap] = useState<Record<string, DivIcon> | null>(null);
+  const [favoriteIconMap, setFavoriteIconMap] = useState<Record<string, DivIcon> | null>(null);
 
   useEffect(() => {
     const createIcons = async () => {
@@ -66,6 +70,7 @@ export default function ResortsWeekProbabilityMap({
       ];
 
       setIconMap(createColorDotIconMap(leaflet, colors));
+      setFavoriteIconMap(createColorShapeIconMap(leaflet, colors, "star"));
     };
 
     createIcons();
@@ -106,12 +111,16 @@ export default function ResortsWeekProbabilityMap({
             weekProbability.probability,
             weekProbability.unknown
           );
-          const icon = iconMap?.[colorClass];
+          const isFavorite = favoriteResortIds.has(resort.id);
+          const icon = isFavorite
+            ? favoriteIconMap?.[colorClass]
+            : iconMap?.[colorClass];
 
           return (
             <Marker
               key={resort.id}
               position={[resort.latitude, resort.longitude]}
+              zIndexOffset={isFavorite ? 1000 : 0}
               {...(icon ? { icon } : {})}
             >
               <Popup>
@@ -119,6 +128,11 @@ export default function ResortsWeekProbabilityMap({
                   <p className="font-semibold text-gray-900">{resort.name}</p>
                   {regionLabel && (
                     <p className="text-sm text-gray-500">{regionLabel}</p>
+                  )}
+                  {isFavorite && (
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
+                      Favori
+                    </p>
                   )}
                   <p className="mt-2 text-sm text-gray-700">
                     {weekLabel} : <span className="font-semibold">{probabilityLabel}</span>

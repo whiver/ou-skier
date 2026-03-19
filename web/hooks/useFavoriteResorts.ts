@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const FAVORITE_RESORT_IDS_STORAGE_KEY = "ou-skier.favorite-resort-ids";
+
+type FavoriteResortStorageSnapshot = {
+  ids: number[];
+  isAvailable: boolean;
+};
 
 function parseFavoriteResortIds(value: string | null): number[] {
   if (!value) {
@@ -28,21 +33,38 @@ function parseFavoriteResortIds(value: string | null): number[] {
   }
 }
 
-function readFavoriteResortIds(): number[] {
+function readFavoriteResortIds(): FavoriteResortStorageSnapshot {
   if (typeof window === "undefined") {
-    return [];
+    return { ids: [], isAvailable: false };
   }
 
-  return parseFavoriteResortIds(
-    window.localStorage.getItem(FAVORITE_RESORT_IDS_STORAGE_KEY),
-  );
+  try {
+    return {
+      ids: parseFavoriteResortIds(
+        window.localStorage.getItem(FAVORITE_RESORT_IDS_STORAGE_KEY),
+      ),
+      isAvailable: true,
+    };
+  } catch {
+    return { ids: [], isAvailable: false };
+  }
 }
 
-function writeFavoriteResortIds(ids: number[]): void {
-  window.localStorage.setItem(
-    FAVORITE_RESORT_IDS_STORAGE_KEY,
-    JSON.stringify(ids),
-  );
+function writeFavoriteResortIds(ids: number[]): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    window.localStorage.setItem(
+      FAVORITE_RESORT_IDS_STORAGE_KEY,
+      JSON.stringify(ids),
+    );
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function sortFavoritesFirst<T>(
@@ -75,7 +97,7 @@ export function sortFavoritesFirst<T>(
 
 export function useFavoriteResorts() {
   const [favoriteResortIds, setFavoriteResortIds] = useState<number[]>(() =>
-    readFavoriteResortIds(),
+    readFavoriteResortIds().ids,
   );
 
   useEffect(() => {
@@ -84,7 +106,7 @@ export function useFavoriteResorts() {
         return;
       }
 
-      setFavoriteResortIds(readFavoriteResortIds());
+      setFavoriteResortIds(readFavoriteResortIds().ids);
     };
 
     window.addEventListener("storage", handleStorage);
@@ -99,17 +121,21 @@ export function useFavoriteResorts() {
     [favoriteResortIds],
   );
 
-  const toggleFavoriteResort = (resortId: number) => {
+  const toggleFavoriteResort = useCallback((resortId: number) => {
     setFavoriteResortIds((currentIds) => {
-      const nextIds = currentIds.includes(resortId)
-        ? currentIds.filter((currentId) => currentId !== resortId)
-        : [...currentIds, resortId];
+      const storageSnapshot = readFavoriteResortIds();
+      const sourceIds = storageSnapshot.isAvailable
+        ? storageSnapshot.ids
+        : currentIds;
+      const nextIds = sourceIds.includes(resortId)
+        ? sourceIds.filter((currentId) => currentId !== resortId)
+        : [...sourceIds, resortId];
 
       writeFavoriteResortIds(nextIds);
 
       return nextIds;
     });
-  };
+  }, []);
 
   return {
     favoriteResortIds,

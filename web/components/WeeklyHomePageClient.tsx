@@ -40,7 +40,7 @@ export default function WeeklyHomePageClient({
 
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
-  const { favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
+  const { favoriteResortIds, favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
 
   const probabilityByResortId = useMemo(() => {
     return new Map(probabilities.map((entry) => [entry.resortId, entry]));
@@ -235,7 +235,12 @@ export default function WeeklyHomePageClient({
           <div className="mt-6">
             {mappableResorts.length > 0 ? (
               <>
-                <ResortsWeekProbabilityMap resorts={mappableResorts} weekLabel={weekLabel} />
+                <ResortsWeekProbabilityMap
+                  key={favoriteResortIds.join(",") || "no-favorites"}
+                  resorts={mappableResorts}
+                  weekLabel={weekLabel}
+                  favoriteResortIds={favoriteResortIdsSet}
+                />
                 <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
                   <span>Moins</span>
                   <span className="h-4 w-4 rounded-sm bg-emerald-100" />
@@ -246,6 +251,18 @@ export default function WeeklyHomePageClient({
                   <span>Plus</span>
                   <span className="ml-2">Inconnu</span>
                   <span className="h-4 w-4 rounded-sm bg-gray-200" />
+                  <span className="ml-2 text-amber-600">Favori</span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center text-base leading-none text-amber-500 drop-shadow-sm">
+                    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                      <path
+                        d="M10 1.75l2.28 4.63 5.12.74-3.7 3.61.87 5.09L10 13.41l-4.57 2.41.87-5.09-3.7-3.61 5.12-.74L10 1.75Z"
+                        fill="currentColor"
+                        stroke="#ffffff"
+                        strokeWidth="1.3"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
                 </div>
               </>
             ) : (
