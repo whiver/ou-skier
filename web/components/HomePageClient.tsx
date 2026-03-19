@@ -1,21 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import ResortCard from "@/components/ResortCard";
 import ResortsMap from "@/components/ResortsMap";
 import { formatRegionLabel } from "@/lib/region";
 import { usePagination } from "@/hooks/usePagination";
 import type { Resort } from "@/types";
+import { useState } from "react";
 
 type HomePageClientProps = {
   resorts: Resort[];
   lastUpdateDate?: string | null;
 };
 
-type ViewMode = "list" | "map";
-
 export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClientProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
 
@@ -88,40 +86,11 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
   return (
     <>
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("map")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                viewMode === "map"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Carte
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                viewMode === "list"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Liste
-            </button>
-          </div>
-
-          <p className="text-sm text-gray-500">
-            {filteredResorts.length} domaine{filteredResorts.length > 1 ? "s" : ""}
-            {viewMode === "map"
-              ? ` (${mappableResorts.length} avec coordonnées)`
-              : ""}
-            {lastUpdateDate ? ` · mis à jour le ${lastUpdateDate}` : ""}
-          </p>
-        </div>
+        <p className="text-sm text-gray-500">
+          {filteredResorts.length} domaine{filteredResorts.length > 1 ? "s" : ""}
+          {` (${mappableResorts.length} avec coordonnées)`}
+          {lastUpdateDate ? ` · mis à jour le ${lastUpdateDate}` : ""}
+        </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div>
@@ -175,50 +144,52 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
             Aucun domaine ne correspond aux filtres actuels.
           </p>
         </div>
-      ) : viewMode === "list" ? (
-        <div className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-            {paginatedResorts.map((resort) => (
-              <ResortCard key={resort.id} resort={resort} />
-            ))}
-          </div>
-          {hasMore && (
-            <div className="mt-6 flex justify-center">
-              <button
-                type="button"
-                onClick={showMore}
-                className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
-              >
-                Afficher plus de domaines
-              </button>
-            </div>
-          )}
-        </div>
       ) : (
-        <div className="mt-6">
-          {mappableResorts.length > 0 ? (
-            <>
-              <ResortsMap resorts={mappableResorts} />
-              <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
-                <span>Fermé</span>
-                <span className="h-4 w-4 rounded-sm bg-red-500" />
-                <span>&lt; 50%</span>
-                <span className="h-4 w-4 rounded-sm bg-amber-300" />
-                <span>≥ 50%</span>
-                <span className="h-4 w-4 rounded-sm bg-emerald-500" />
-                <span className="ml-2">Inconnu</span>
-                <span className="h-4 w-4 rounded-sm bg-gray-200" />
+        <>
+          <div className="mt-6">
+            {mappableResorts.length > 0 ? (
+              <>
+                <ResortsMap resorts={mappableResorts} />
+                <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
+                  <span>Fermé</span>
+                  <span className="h-4 w-4 rounded-sm bg-red-500" />
+                  <span>&lt; 50%</span>
+                  <span className="h-4 w-4 rounded-sm bg-amber-300" />
+                  <span>≥ 50%</span>
+                  <span className="h-4 w-4 rounded-sm bg-emerald-500" />
+                  <span className="ml-2">Inconnu</span>
+                  <span className="h-4 w-4 rounded-sm bg-gray-200" />
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
+                <p className="text-sm text-gray-500">
+                  Aucun domaine filtré ne possède de coordonnées pour l&apos;affichage
+                  sur la carte.
+                </p>
               </div>
-            </>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-              <p className="text-sm text-gray-500">
-                Aucun domaine filtré ne possède de coordonnées pour l&apos;affichage
-                sur la carte.
-              </p>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+              {paginatedResorts.map((resort) => (
+                <ResortCard key={resort.id} resort={resort} />
+              ))}
             </div>
-          )}
-        </div>
+            {hasMore && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={showMore}
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                >
+                  Afficher plus de domaines
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </>
   );

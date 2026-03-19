@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRegionLabel } from "@/lib/region";
 import { usePagination } from "@/hooks/usePagination";
 import ResortsWeekProbabilityMap from "@/components/ResortsWeekProbabilityMap";
 import ResortWeekProbabilityCard from "@/components/ResortWeekProbabilityCard";
 import type { Resort, ResortWeekProbability, ResortWithWeekProbability } from "@/types";
-
-type ViewMode = "list" | "map";
+import { useState } from "react";
 
 type WeeklyHomePageClientProps = {
   resorts: Resort[];
@@ -38,7 +37,6 @@ export default function WeeklyHomePageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
 
@@ -163,31 +161,6 @@ export default function WeeklyHomePageClient({
             />
             <p className="mt-2 text-xs text-gray-500">{weekLabel}</p>
           </div>
-
-          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("map")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                viewMode === "map"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Carte
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                viewMode === "list"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Liste
-            </button>
-          </div>
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -237,9 +210,7 @@ export default function WeeklyHomePageClient({
 
         <p className="mt-4 text-sm text-gray-500">
           {filteredResorts.length} domaine{filteredResorts.length > 1 ? "s" : ""}
-          {viewMode === "map"
-            ? ` (${mappableResorts.length} avec coordonnées)`
-            : ""}
+          {` (${mappableResorts.length} avec coordonnées)`}
         </p>
       </section>
 
@@ -249,55 +220,57 @@ export default function WeeklyHomePageClient({
             Aucun domaine ne correspond aux filtres actuels.
           </p>
         </div>
-      ) : viewMode === "list" ? (
-        <div className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-            {paginatedResorts.map((item) => (
-              <ResortWeekProbabilityCard
-                key={item.resort.id}
-                item={item}
-                weekLabel={weekLabel}
-              />
-            ))}
-          </div>
-          {hasMore && (
-            <div className="mt-6 flex justify-center">
-              <button
-                type="button"
-                onClick={showMore}
-                className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
-              >
-                Afficher plus de domaines
-              </button>
-            </div>
-          )}
-        </div>
       ) : (
-        <div className="mt-6">
-          {mappableResorts.length > 0 ? (
-            <>
-              <ResortsWeekProbabilityMap resorts={mappableResorts} weekLabel={weekLabel} />
-              <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
-                <span>Moins</span>
-                <span className="h-4 w-4 rounded-sm bg-emerald-100" />
-                <span className="h-4 w-4 rounded-sm bg-emerald-200" />
-                <span className="h-4 w-4 rounded-sm bg-emerald-300" />
-                <span className="h-4 w-4 rounded-sm bg-emerald-400" />
-                <span className="h-4 w-4 rounded-sm bg-emerald-500" />
-                <span>Plus</span>
-                <span className="ml-2">Inconnu</span>
-                <span className="h-4 w-4 rounded-sm bg-gray-200" />
+        <>
+          <div className="mt-6">
+            {mappableResorts.length > 0 ? (
+              <>
+                <ResortsWeekProbabilityMap resorts={mappableResorts} weekLabel={weekLabel} />
+                <div className="mt-4 flex items-center justify-end gap-2 text-[11px] text-gray-400">
+                  <span>Moins</span>
+                  <span className="h-4 w-4 rounded-sm bg-emerald-100" />
+                  <span className="h-4 w-4 rounded-sm bg-emerald-200" />
+                  <span className="h-4 w-4 rounded-sm bg-emerald-300" />
+                  <span className="h-4 w-4 rounded-sm bg-emerald-400" />
+                  <span className="h-4 w-4 rounded-sm bg-emerald-500" />
+                  <span>Plus</span>
+                  <span className="ml-2">Inconnu</span>
+                  <span className="h-4 w-4 rounded-sm bg-gray-200" />
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
+                <p className="text-sm text-gray-500">
+                  Aucun domaine filtré ne possède de coordonnées pour l&apos;affichage
+                  sur la carte.
+                </p>
               </div>
-            </>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-              <p className="text-sm text-gray-500">
-                Aucun domaine filtré ne possède de coordonnées pour l&apos;affichage
-                sur la carte.
-              </p>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+              {paginatedResorts.map((item) => (
+                <ResortWeekProbabilityCard
+                  key={item.resort.id}
+                  item={item}
+                  weekLabel={weekLabel}
+                />
+              ))}
             </div>
-          )}
-        </div>
+            {hasMore && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={showMore}
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                >
+                  Afficher plus de domaines
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </>
   );
