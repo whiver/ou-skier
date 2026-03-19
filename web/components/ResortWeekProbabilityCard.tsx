@@ -35,19 +35,6 @@ export default function ResortWeekProbabilityCard({
               resortName={resort.name}
               onToggleFavorite={() => onToggleFavorite(resort.id)}
             />
-            {resort.domainUrl && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  window.open(resort.domainUrl ?? "", "_blank", "noopener,noreferrer");
-                }}
-                className="shrink-0 text-xs text-blue-500 underline hover:text-blue-700"
-              >
-                Site officiel
-              </button>
-            )}
           </div>
         </div>
 
