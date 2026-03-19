@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import ResortCard from "@/components/ResortCard";
 import ResortsMap from "@/components/ResortsMap";
 import { formatRegionLabel } from "@/lib/region";
+import {
+  RESORT_SORT_OPTIONS,
+  sortResortsByOption,
+  type ResortSortOption,
+} from "@/lib/resortSorting";
 import { sortFavoritesFirst, useFavoriteResorts } from "@/hooks/useFavoriteResorts";
 import { usePagination } from "@/hooks/usePagination";
 import type { Resort } from "@/types";
@@ -17,6 +22,7 @@ type HomePageClientProps = {
 export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClientProps) {
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [sortOption, setSortOption] = useState<ResortSortOption>("name-asc");
   const { favoriteResortIds, favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
 
   const regions = useMemo(() => {
@@ -49,13 +55,17 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
     });
   }, [resorts, searchText, selectedRegions]);
 
+  const sortedResorts = useMemo(() => {
+    return sortResortsByOption(filteredResorts, sortOption, (resort) => resort);
+  }, [filteredResorts, sortOption]);
+
   const orderedResorts = useMemo(() => {
     return sortFavoritesFirst(
-      filteredResorts,
+      sortedResorts,
       (resort) => resort.id,
       favoriteResortIdsSet,
     );
-  }, [filteredResorts, favoriteResortIdsSet]);
+  }, [sortedResorts, favoriteResortIdsSet]);
 
   const { visibleItems: paginatedResorts, hasMore, showMore } =
     usePagination(orderedResorts);
@@ -102,7 +112,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
           {lastUpdateDate ? ` · mis à jour le ${lastUpdateDate}` : ""}
         </p>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
           <div>
             <label
               htmlFor="resort-search"
@@ -121,29 +131,50 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
           </div>
 
           <div>
-            <p className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Régions
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {regions.map((region) => {
-                const isActive = selectedRegions.includes(region);
+            <label
+              htmlFor="resort-sort"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+            >
+              Trier par
+            </label>
+            <select
+              id="resort-sort"
+              value={sortOption}
+              onChange={(event) => setSortOption(event.target.value as ResortSortOption)}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            >
+              {RESORT_SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-                return (
-                  <button
-                    key={region}
-                    type="button"
-                    onClick={() => toggleRegion(region)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                      isActive
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
-                    }`}
-                  >
-                    {formatRegionLabel(region)}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="mt-4">
+          <p className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Régions
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {regions.map((region) => {
+              const isActive = selectedRegions.includes(region);
+
+              return (
+                <button
+                  key={region}
+                  type="button"
+                  onClick={() => toggleRegion(region)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    isActive
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                  }`}
+                >
+                  {formatRegionLabel(region)}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
