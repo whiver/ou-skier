@@ -13,9 +13,13 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
   let createdResorts = 0;
   let geocodedResorts = 0;
-  const now = new Date();
+  const runStartedAt = new Date();
   const ingestionRecordDate = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    Date.UTC(
+      runStartedAt.getUTCFullYear(),
+      runStartedAt.getUTCMonth(),
+      runStartedAt.getUTCDate()
+    )
   );
 
   for (const record of records) {
@@ -68,27 +72,47 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
           });
         })();
 
-    await db.snowRecord.upsert({
+    const existingSnowRecord = await db.snowRecord.findUnique({
       where: {
         resortId_recordDate: {
           resortId: resort.id,
           recordDate: ingestionRecordDate,
         },
       },
-      create: {
-        resortId: resort.id,
-        recordDate: ingestionRecordDate,
-        openSlopes: record.openSlopes,
-        totalSlopes: record.totalSlopes,
-        notes: record.notes,
-        sourceUrl: record.sourceUrl,
-        createdAt: ingestionRecordDate,
+      select: {
+        id: true,
+        createdAt: true,
+        recordDate: true,
       },
-      update: {
+    });
+
+    if (!existingSnowRecord) {
+      await db.snowRecord.create({
+        data: {
+          resortId: resort.id,
+          recordDate: ingestionRecordDate,
+          openSlopes: record.openSlopes,
+          totalSlopes: record.totalSlopes,
+          notes: record.notes,
+          sourceUrl: record.sourceUrl,
+        },
+      });
+
+      continue;
+    }
+
+    const shouldRepairCreatedAt =
+      existingSnowRecord.createdAt.getTime() ===
+      existingSnowRecord.recordDate.getTime();
+
+    await db.snowRecord.update({
+      where: { id: existingSnowRecord.id },
+      data: {
         openSlopes: record.openSlopes ?? undefined,
         totalSlopes: record.totalSlopes ?? undefined,
         notes: record.notes ?? undefined,
-        sourceUrl: record.sourceUrl,
+        sourceUrl: record.sourceUrl ?? undefined,
+        ...(shouldRepairCreatedAt ? { createdAt: new Date() } : {}),
       },
     });
   }

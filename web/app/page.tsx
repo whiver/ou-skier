@@ -4,6 +4,16 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 86400;
 
+function formatLastUpdateTimestamp(date: Date): string {
+  return date.toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 async function getResorts(): Promise<Resort[]> {
   try {
     const resorts = await prisma.resort.findMany({
@@ -23,18 +33,13 @@ async function getResorts(): Promise<Resort[]> {
 
 async function getLastUpdateDate(): Promise<string | null> {
   try {
-    const now = new Date();
     const latest = await prisma.snowRecord.findFirst({
-      where: { recordDate: { lte: now } },
-      orderBy: { recordDate: "desc" },
-      select: { recordDate: true },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     });
     if (!latest) return null;
-    return latest.recordDate.toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+
+    return formatLastUpdateTimestamp(latest.createdAt);
   } catch {
     return null;
   }

@@ -14,8 +14,8 @@ async function syncResorts(records) {
     const db = (0, db_1.getDb)();
     let createdResorts = 0;
     let geocodedResorts = 0;
-    const now = new Date();
-    const ingestionRecordDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const runStartedAt = new Date();
+    const ingestionRecordDate = new Date(Date.UTC(runStartedAt.getUTCFullYear(), runStartedAt.getUTCMonth(), runStartedAt.getUTCDate()));
     for (const record of records) {
         const sourceRecordDate = new Date(Date.UTC(record.recordDate.getUTCFullYear(), record.recordDate.getUTCMonth(), record.recordDate.getUTCDate()));
         console.log(`→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()})`);
@@ -49,27 +49,42 @@ async function syncResorts(records) {
                     },
                 });
             })();
-        await db.snowRecord.upsert({
+        const existingSnowRecord = await db.snowRecord.findUnique({
             where: {
                 resortId_recordDate: {
                     resortId: resort.id,
                     recordDate: ingestionRecordDate,
                 },
             },
-            create: {
-                resortId: resort.id,
-                recordDate: ingestionRecordDate,
-                openSlopes: record.openSlopes,
-                totalSlopes: record.totalSlopes,
-                notes: record.notes,
-                sourceUrl: record.sourceUrl,
-                createdAt: ingestionRecordDate,
+            select: {
+                id: true,
+                createdAt: true,
+                recordDate: true,
             },
-            update: {
+        });
+        if (!existingSnowRecord) {
+            await db.snowRecord.create({
+                data: {
+                    resortId: resort.id,
+                    recordDate: ingestionRecordDate,
+                    openSlopes: record.openSlopes,
+                    totalSlopes: record.totalSlopes,
+                    notes: record.notes,
+                    sourceUrl: record.sourceUrl,
+                },
+            });
+            continue;
+        }
+        const shouldRepairCreatedAt = existingSnowRecord.createdAt.getTime() ===
+            existingSnowRecord.recordDate.getTime();
+        await db.snowRecord.update({
+            where: { id: existingSnowRecord.id },
+            data: {
                 openSlopes: record.openSlopes ?? undefined,
                 totalSlopes: record.totalSlopes ?? undefined,
                 notes: record.notes ?? undefined,
-                sourceUrl: record.sourceUrl,
+                sourceUrl: record.sourceUrl ?? undefined,
+                ...(shouldRepairCreatedAt ? { createdAt: new Date() } : {}),
             },
         });
     }
