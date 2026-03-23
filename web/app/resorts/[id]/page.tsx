@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import ResortBackButton from "@/components/ResortBackButton";
 import { prisma } from "@/lib/prisma";
 import { formatRegionLabel } from "@/lib/region";
 import {
@@ -95,12 +95,7 @@ export default async function ResortPage({
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
       <header className="bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
-          <Link
-            href="/domaines"
-            className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-blue-600 transition-colors"
-          >
-            ← Le bulletin du jour
-          </Link>
+          <ResortBackButton />
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{resort.name}</h1>
