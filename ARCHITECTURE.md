@@ -136,6 +136,15 @@ Every ingestion run is fully idempotent:
 - **Resort** records are upserted by `name` (which is `@unique` in the schema). Metadata fields (region, domainUrl) are updated only if the scraped value is non-null, preserving any previously stored value.
 - **SnowRecord** records are upserted by `(resortId, recordDate)`. The `recordDate` is always normalised to **midnight UTC** before the upsert, so running the worker multiple times on the same day does not create duplicate records.
 
+## Ingestion coverage guardrail
+
+Before persisting a scrape result, the worker compares the scraped resort set with recently active resorts already present in the database.
+
+- A resort is considered recently active when it has at least `ACTIVE_RESORT_MIN_RECORD_DAYS` SnowRecord days within the last `ACTIVE_RESORT_LOOKBACK_DAYS` days.
+- If one or more recently active resorts are missing from the current bulletin, the worker logs the anomaly, emits a GitHub Actions warning annotation, can notify `ntfy`, and continues with the partial write.
+
+This guardrail is intended to surface partial scrapes or pagination regressions early while preserving best-effort daily coverage.
+
 ---
 
 ## Web app rendering model

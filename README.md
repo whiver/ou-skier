@@ -92,6 +92,21 @@ WEB_REVALIDATE_URL=https://ouskier.vercel.app/api/revalidate
 WEB_REVALIDATE_SECRET=<same value as REVALIDATE_SECRET>
 ```
 
+To make partial scrapes visible instead of silently writing incomplete daily data, the worker also supports:
+
+```
+ACTIVE_RESORT_LOOKBACK_DAYS=7
+ACTIVE_RESORT_MIN_RECORD_DAYS=2
+NTFY_TOPIC=ouskier-worker
+```
+
+By default, the worker compares the scraped resort list with resorts that had at least 2 known SnowRecord days in the last 7 days. If any of those recently active resorts disappear from the bulletin, the worker:
+
+- logs the missing resorts in detail,
+- emits a GitHub Actions warning annotation,
+- sends an ntfy notification when `NTFY_TOPIC` is set,
+- still ingests all available scraped rows for that day.
+
 After a successful worker run, the worker calls this endpoint so `/domaines` and resort detail pages are invalidated immediately.
 
 ### Running the Worker
@@ -99,6 +114,8 @@ After a successful worker run, the worker calls this endpoint so `/domaines` and
 The worker fetches the latest [Nordic France](https://www.nordicfrance.fr/le-bulletin-neige/) snow bulletin and upserts the data into the database.
 
 It combines paginated weather cards with inline station metadata (`Weather.posts`) from the bulletin page to infer a massif, then maps that massif to a best-effort `Region` value.
+
+Before writing anything to the database, the worker validates scrape coverage against recently active resorts so partial bulletin responses are surfaced immediately while still ingesting the available scraped data.
 
 For newly discovered resorts, the worker also attempts to fill `latitude` / `longitude` once (BAN geocoder with Nominatim fallback) so resorts can be displayed on a map.
 

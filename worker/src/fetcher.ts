@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import { ResortSnowData } from "./types";
+import { normalizeResortName } from "./normalization";
 
 const NORDIC_FRANCE_BULLETIN_URL =
   "https://www.nordicfrance.fr/le-bulletin-neige/";
@@ -8,6 +9,8 @@ const NORDIC_FRANCE_AJAX_URL =
   "https://www.nordicfrance.fr/cms/wp-admin/admin-ajax.php";
 const POSTS_PER_PAGE = 50;
 const MAX_PAGES = 40;
+const PAGE_FETCH_ATTEMPTS = 3;
+const PAGE_FETCH_RETRY_DELAY_MS = 1000;
 
 type NordicMassifSlug =
   | "alpes_du_nord"
@@ -71,17 +74,12 @@ function parseFrenchDayMonth(raw: string | undefined): Date {
   return parsed;
 }
 
-function normalizeName(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function normalizeUrl(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+async function wait(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 function mapMassifToRegion(
@@ -184,7 +182,7 @@ async function fetchBulletinMetadataIndex(): Promise<BulletinMetadataIndex> {
     if (!post.permalink || !post.label) continue;
 
     byPermalink.set(normalizeUrl(post.permalink), post);
-    byLabel.set(normalizeName(post.label), post);
+    byLabel.set(normalizeResortName(post.label), post);
   }
 
   return {
@@ -223,6 +221,31 @@ async function fetchWeatherPage(page: number): Promise<string> {
   return response.text();
 }
 
+async function fetchWeatherPageWithRetry(page: number): Promise<string> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= PAGE_FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.warn(
+          `⚠  Retrying Nordic France AJAX page ${page} (${attempt}/${PAGE_FETCH_ATTEMPTS})…`
+        );
+      }
+
+      return await fetchWeatherPage(page);
+    } catch (error) {
+      lastError = error;
+      if (attempt < PAGE_FETCH_ATTEMPTS) {
+        await wait(PAGE_FETCH_RETRY_DELAY_MS * attempt);
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Failed to fetch Nordic France AJAX page ${page}`);
+}
+
 function parseWeatherCards(
   html: string,
   metadataIndex: BulletinMetadataIndex
@@ -249,7 +272,7 @@ function parseWeatherCards(
     const href = card.find("a.Weather-link").attr("href") ?? null;
     const domainUrl = href ? new URL(href, "https://www.nordicfrance.fr").toString() : null;
     const normalizedDomainUrl = domainUrl ? normalizeUrl(domainUrl) : null;
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeResortName(name);
     const metadata =
       (normalizedDomainUrl
         ? metadataIndex.byPermalink.get(normalizedDomainUrl)
@@ -290,8 +313,10 @@ export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
   const allRecords: ResortSnowData[] = [];
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const html = await fetchWeatherPage(page);
+    const html = await fetchWeatherPageWithRetry(page);
     const pageRecords = parseWeatherCards(html, metadataIndex);
+
+    console.log(`→ Parsed ${pageRecords.length} resort(s) from bulletin page ${page}.`);
 
     if (pageRecords.length === 0) {
       break;
@@ -304,6 +329,17 @@ export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
   for (const record of allRecords) {
     uniqueByName.set(record.name, record);
   }
+
+  const duplicateCount = allRecords.length - uniqueByName.size;
+  if (duplicateCount > 0) {
+    console.warn(
+      `⚠  Collapsed ${duplicateCount} duplicate bulletin row(s) by resort name.`
+    );
+  }
+
+  console.log(
+    `→ Parsed ${allRecords.length} raw bulletin row(s), ${uniqueByName.size} unique resort(s).`
+  );
 
   return [...uniqueByName.values()];
 }

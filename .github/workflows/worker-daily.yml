@@ -18,6 +18,9 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       WEB_REVALIDATE_URL: ${{ secrets.WEB_REVALIDATE_URL }}
       WEB_REVALIDATE_SECRET: ${{ secrets.WEB_REVALIDATE_SECRET }}
+      ACTIVE_RESORT_LOOKBACK_DAYS: 7
+      ACTIVE_RESORT_MIN_RECORD_DAYS: 2
+      NTFY_TOPIC: ouskier-worker
 
     steps:
       - name: Checkout repository

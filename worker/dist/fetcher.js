@@ -39,10 +39,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchNordicFranceBulletin = fetchNordicFranceBulletin;
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const cheerio = __importStar(require("cheerio"));
+const normalization_1 = require("./normalization");
 const NORDIC_FRANCE_BULLETIN_URL = "https://www.nordicfrance.fr/le-bulletin-neige/";
 const NORDIC_FRANCE_AJAX_URL = "https://www.nordicfrance.fr/cms/wp-admin/admin-ajax.php";
 const POSTS_PER_PAGE = 50;
 const MAX_PAGES = 40;
+const PAGE_FETCH_ATTEMPTS = 3;
+const PAGE_FETCH_RETRY_DELAY_MS = 1000;
 /**
  * Parses an open/total slopes string like "12/18" or "12".
  */
@@ -81,16 +84,11 @@ function parseFrenchDayMonth(raw) {
     }
     return parsed;
 }
-function normalizeName(value) {
-    return value
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
-}
 function normalizeUrl(value) {
     return value.replace(/\/+$/, "");
+}
+async function wait(delayMs) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 function mapMassifToRegion(massif) {
     if (!massif)
@@ -174,7 +172,7 @@ async function fetchBulletinMetadataIndex() {
         if (!post.permalink || !post.label)
             continue;
         byPermalink.set(normalizeUrl(post.permalink), post);
-        byLabel.set(normalizeName(post.label), post);
+        byLabel.set((0, normalization_1.normalizeResortName)(post.label), post);
     }
     return {
         byPermalink,
@@ -204,6 +202,26 @@ async function fetchWeatherPage(page) {
     }
     return response.text();
 }
+async function fetchWeatherPageWithRetry(page) {
+    let lastError;
+    for (let attempt = 1; attempt <= PAGE_FETCH_ATTEMPTS; attempt += 1) {
+        try {
+            if (attempt > 1) {
+                console.warn(`⚠  Retrying Nordic France AJAX page ${page} (${attempt}/${PAGE_FETCH_ATTEMPTS})…`);
+            }
+            return await fetchWeatherPage(page);
+        }
+        catch (error) {
+            lastError = error;
+            if (attempt < PAGE_FETCH_ATTEMPTS) {
+                await wait(PAGE_FETCH_RETRY_DELAY_MS * attempt);
+            }
+        }
+    }
+    throw lastError instanceof Error
+        ? lastError
+        : new Error(`Failed to fetch Nordic France AJAX page ${page}`);
+}
 function parseWeatherCards(html, metadataIndex) {
     const $ = cheerio.load(html);
     const records = [];
@@ -224,7 +242,7 @@ function parseWeatherCards(html, metadataIndex) {
         const href = card.find("a.Weather-link").attr("href") ?? null;
         const domainUrl = href ? new URL(href, "https://www.nordicfrance.fr").toString() : null;
         const normalizedDomainUrl = domainUrl ? normalizeUrl(domainUrl) : null;
-        const normalizedName = normalizeName(name);
+        const normalizedName = (0, normalization_1.normalizeResortName)(name);
         const metadata = (normalizedDomainUrl
             ? metadataIndex.byPermalink.get(normalizedDomainUrl)
             : undefined) ?? metadataIndex.byLabel.get(normalizedName);
@@ -259,8 +277,9 @@ async function fetchNordicFranceBulletin() {
     const metadataIndex = await fetchBulletinMetadataIndex();
     const allRecords = [];
     for (let page = 1; page <= MAX_PAGES; page += 1) {
-        const html = await fetchWeatherPage(page);
+        const html = await fetchWeatherPageWithRetry(page);
         const pageRecords = parseWeatherCards(html, metadataIndex);
+        console.log(`→ Parsed ${pageRecords.length} resort(s) from bulletin page ${page}.`);
         if (pageRecords.length === 0) {
             break;
         }
@@ -270,5 +289,10 @@ async function fetchNordicFranceBulletin() {
     for (const record of allRecords) {
         uniqueByName.set(record.name, record);
     }
+    const duplicateCount = allRecords.length - uniqueByName.size;
+    if (duplicateCount > 0) {
+        console.warn(`⚠  Collapsed ${duplicateCount} duplicate bulletin row(s) by resort name.`);
+    }
+    console.log(`→ Parsed ${allRecords.length} raw bulletin row(s), ${uniqueByName.size} unique resort(s).`);
     return [...uniqueByName.values()];
 }
