@@ -40,7 +40,7 @@ SnowRecord
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL database (e.g. [Neon](https://neon.tech) for Vercel deployments)
 
 ### Setup
