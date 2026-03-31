@@ -9,7 +9,11 @@ export function getSlopeOpeningLevel(resort: Resort): SlopeOpeningLevel {
     return "unknown";
   }
 
-  if (latest.openSlopes <= 0) {
+  if (latest.openSlopes < 0) {
+    return "unknown";
+  }
+
+  if (latest.openSlopes === 0) {
     return "red";
   }
 
