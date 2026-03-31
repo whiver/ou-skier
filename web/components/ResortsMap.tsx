@@ -10,6 +10,7 @@ import {
   createColorDotIconMap,
   createColorShapeIconMap,
 } from "@/lib/mapMarkers";
+import { getSlopeOpeningLevel } from "@/lib/slopeOpeningLevel";
 import type { DivIcon } from "leaflet";
 
 const MapContainer = dynamic(
@@ -42,29 +43,11 @@ const PARTIAL_COLOR_CLASS = "bg-amber-300";
 const CLOSED_COLOR_CLASS = "bg-red-500";
 const UNKNOWN_COLOR_CLASS = "bg-gray-200";
 
-function getDailyOpenState(
-  resort: Resort
-): "open" | "partial" | "closed" | "unknown" {
-  const latest = resort.snowRecords[0];
-  if (!latest || latest.openSlopes === null) {
-    return "unknown";
-  }
-  if (latest.openSlopes <= 0) {
-    return "closed";
-  }
-  if (latest.totalSlopes === null || latest.totalSlopes <= 0) {
-    return "unknown";
-  }
-
-  const openRatio = latest.openSlopes / latest.totalSlopes;
-  return openRatio >= 0.5 ? "open" : "partial";
-}
-
 function getDailyOpenStateColorClass(resort: Resort): string {
-  const state = getDailyOpenState(resort);
-  if (state === "open") return OPEN_COLOR_CLASS;
-  if (state === "partial") return PARTIAL_COLOR_CLASS;
-  if (state === "closed") return CLOSED_COLOR_CLASS;
+  const state = getSlopeOpeningLevel(resort);
+  if (state === "green") return OPEN_COLOR_CLASS;
+  if (state === "yellow") return PARTIAL_COLOR_CLASS;
+  if (state === "red") return CLOSED_COLOR_CLASS;
   return UNKNOWN_COLOR_CLASS;
 }
 
