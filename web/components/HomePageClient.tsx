@@ -30,17 +30,17 @@ const SLOPE_OPENING_LEVEL_OPTIONS: Array<{
 }> = [
   {
     value: "green",
-    label: "Vert",
+    label: "≥ 50%",
     activeClassName: "border-emerald-500 bg-emerald-50 text-emerald-700",
   },
   {
     value: "yellow",
-    label: "Jaune",
+    label: "< 50%",
     activeClassName: "border-amber-400 bg-amber-50 text-amber-700",
   },
   {
     value: "red",
-    label: "Rouge",
+    label: "Fermé",
     activeClassName: "border-red-500 bg-red-50 text-red-700",
   },
 ];
@@ -197,7 +197,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
                   key={region}
                   type="button"
                   onClick={() => toggleRegion(region)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? "border-blue-500 bg-blue-50 text-blue-700"
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -218,7 +218,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
             <button
               type="button"
               onClick={() => setSelectedSlopeOpeningLevel(null)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
                 selectedSlopeOpeningLevel === null
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -234,7 +234,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
                   key={option.value}
                   type="button"
                   onClick={() => setSelectedSlopeOpeningLevel(option.value)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? option.activeClassName
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
