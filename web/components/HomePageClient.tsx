@@ -9,6 +9,10 @@ import {
   sortResortsByOption,
   type ResortSortOption,
 } from "@/lib/resortSorting";
+import {
+  getSlopeOpeningLevel,
+  type SlopeOpeningLevel,
+} from "@/lib/slopeOpeningLevel";
 import { sortFavoritesFirst, useFavoriteResorts } from "@/hooks/useFavoriteResorts";
 import { usePagination } from "@/hooks/usePagination";
 import type { Resort } from "@/types";
@@ -19,9 +23,34 @@ type HomePageClientProps = {
   lastUpdateDate?: string | null;
 };
 
+const SLOPE_OPENING_LEVEL_OPTIONS: Array<{
+  value: Exclude<SlopeOpeningLevel, "unknown">;
+  label: string;
+  activeClassName: string;
+}> = [
+  {
+    value: "green",
+    label: "≥ 50%",
+    activeClassName: "border-emerald-500 bg-emerald-50 text-emerald-700",
+  },
+  {
+    value: "yellow",
+    label: "< 50%",
+    activeClassName: "border-amber-400 bg-amber-50 text-amber-700",
+  },
+  {
+    value: "red",
+    label: "Fermé",
+    activeClassName: "border-red-500 bg-red-50 text-red-700",
+  },
+];
+
 export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClientProps) {
   const [searchText, setSearchText] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [selectedSlopeOpeningLevel, setSelectedSlopeOpeningLevel] = useState<
+    Exclude<SlopeOpeningLevel, "unknown"> | null
+  >(null);
   const [sortOption, setSortOption] = useState<ResortSortOption>("name-asc");
   const { favoriteResortIds, favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
 
@@ -50,10 +79,13 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
       const matchesRegion =
         selectedRegions.length === 0 ||
         (resort.region !== null && selectedRegions.includes(resort.region));
+      const matchesSlopeOpeningLevel =
+        selectedSlopeOpeningLevel === null ||
+        getSlopeOpeningLevel(resort) === selectedSlopeOpeningLevel;
 
-      return matchesSearch && matchesRegion;
+      return matchesSearch && matchesRegion && matchesSlopeOpeningLevel;
     });
-  }, [resorts, searchText, selectedRegions]);
+  }, [resorts, searchText, selectedRegions, selectedSlopeOpeningLevel]);
 
   const sortedResorts = useMemo(() => {
     return sortResortsByOption(filteredResorts, sortOption, (resort) => resort);
@@ -165,13 +197,50 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
                   key={region}
                   type="button"
                   onClick={() => toggleRegion(region)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? "border-blue-500 bg-blue-50 text-blue-700"
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
                   }`}
                 >
                   {formatRegionLabel(region)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Niveau d&apos;ouverture des pistes
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSlopeOpeningLevel(null)}
+              className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
+                selectedSlopeOpeningLevel === null
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
+              }`}
+            >
+              Tous
+            </button>
+            {SLOPE_OPENING_LEVEL_OPTIONS.map((option) => {
+              const isActive = selectedSlopeOpeningLevel === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSelectedSlopeOpeningLevel(option.value)}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    isActive
+                      ? option.activeClassName
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                  }`}
+                >
+                  {option.label}
                 </button>
               );
             })}
