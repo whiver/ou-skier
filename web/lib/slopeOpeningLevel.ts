@@ -3,12 +3,13 @@ import type { Resort } from "@/types";
 export type SlopeOpeningLevel = "green" | "yellow" | "red" | "unknown";
 
 /**
- * Maximum age (in milliseconds) of a snow record before it is considered
- * stale and the resort status falls back to "unknown".  Two days gives enough
- * margin for the daily worker run while still catching resorts whose data
- * stopped being ingested.
+ * Maximum age of a snow record before it is considered stale and the resort
+ * status falls back to "unknown".  Two days gives enough margin for the daily
+ * worker run while still catching resorts whose data stopped being ingested.
  */
-const STALENESS_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000;
+const STALENESS_THRESHOLD_DAYS = 2;
+const STALENESS_THRESHOLD_MS =
+  STALENESS_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
 export function getSlopeOpeningLevel(resort: Resort): SlopeOpeningLevel {
   const latest = resort.snowRecords[0];
