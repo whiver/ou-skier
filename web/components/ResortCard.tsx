@@ -68,9 +68,12 @@ export default function ResortCard({
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-gray-400 italic">
-            Aucune donnée disponible
-          </p>
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-wide text-gray-400">
+              Pistes ouvertes
+            </p>
+            <p className="mt-1 text-sm font-medium text-gray-500">Inconnu</p>
+          </div>
         )}
 
         {recordDate && (

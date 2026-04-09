@@ -114,7 +114,7 @@ export async function getResortCurrentYearDailySnowStats(
 ): Promise<ResortDaySnowStat[]> {
   const year = now.getUTCFullYear();
   const rangeStart = new Date(Date.UTC(year - 1, 10, 1));
-  const rangeEnd = new Date(Date.UTC(year, 3, 1));
+  const rangeEnd = new Date(Date.UTC(year, 4, 1));
 
   const rows = await prisma.$queryRaw<DailySnowStatRow[]>`
     WITH bounds AS (

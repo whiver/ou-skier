@@ -4,6 +4,16 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 86400;
 
+function getUtcDayBounds(now = new Date()): { start: Date; end: Date } {
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  return { start, end };
+}
+
 function formatLastUpdateTimestamp(date: Date): string {
   return date.toLocaleString("fr-FR", {
     day: "numeric",
@@ -16,10 +26,17 @@ function formatLastUpdateTimestamp(date: Date): string {
 
 async function getResorts(): Promise<Resort[]> {
   try {
+    const { start, end } = getUtcDayBounds();
     const resorts = await prisma.resort.findMany({
       orderBy: { name: "asc" },
       include: {
         snowRecords: {
+          where: {
+            recordDate: {
+              gte: start,
+              lt: end,
+            },
+          },
           orderBy: { recordDate: "desc" },
           take: 1,
         },
@@ -33,7 +50,14 @@ async function getResorts(): Promise<Resort[]> {
 
 async function getLastUpdateDate(): Promise<string | null> {
   try {
+    const { start, end } = getUtcDayBounds();
     const latest = await prisma.snowRecord.findFirst({
+      where: {
+        recordDate: {
+          gte: start,
+          lt: end,
+        },
+      },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     });

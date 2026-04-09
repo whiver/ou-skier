@@ -14,7 +14,7 @@ function getDayStateClass(state: ResortDaySnowStat["state"]): string {
 function getMonthMarkers(weeks: DayCell[][]): Array<{ index: number; label: string }> {
   const markers: Array<{ index: number; label: string }> = [];
   const seen = new Set<string>();
-  const winterMonths = new Set([10, 11, 0, 1, 2]);
+  const winterMonths = new Set([10, 11, 0, 1, 2, 3]);
 
   weeks.forEach((week, index) => {
     const firstDay = week.find(Boolean);

@@ -53,6 +53,7 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
   >(null);
   const [sortOption, setSortOption] = useState<ResortSortOption>("name-asc");
   const { favoriteResortIds, favoriteResortIdsSet, toggleFavoriteResort } = useFavoriteResorts();
+  const hasTodayData = resorts.some((resort) => resort.snowRecords.length > 0);
 
   const regions = useMemo(() => {
     return Array.from(
@@ -130,6 +131,22 @@ export default function HomePageClient({ resorts, lastUpdateDate }: HomePageClie
         <p className="mt-2 text-sm text-gray-400">
           Les données seront disponibles après la première exécution du worker
           d&apos;ingestion.
+        </p>
+      </div>
+    );
+  }
+
+  if (!hasTodayData) {
+    return (
+      <div className="rounded-[2rem] border border-dashed border-sky-200 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-12 text-center shadow-sm">
+        <span className="text-5xl" aria-hidden="true">
+          ☁️
+        </span>
+        <h2 className="mt-4 text-xl font-semibold text-slate-800">
+          La saison d&apos;hiver n&apos;est pas encore là
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+          Aucun bulletin n&apos;est disponible pour aujourd&apos;hui. Il n&apos;y a rien à afficher pour le moment, mais les domaines réapparaîtront ici dès qu&apos;un nouveau bulletin sera disponible.
         </p>
       </div>
     );
