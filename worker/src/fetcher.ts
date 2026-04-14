@@ -107,8 +107,10 @@ async function wait(delayMs: number): Promise<void> {
  * the Nordic France server returns when its MySQL instance is unreachable.
  */
 function isWordPressDbError(html: string): boolean {
-  return html.includes("Erreur lors de la connexion") ||
-    html.includes("Error establishing a database connection");
+  return (
+    html.includes("Erreur lors de la connexion") ||
+    html.includes("Error establishing a database connection")
+  );
 }
 
 function mapMassifToRegion(
