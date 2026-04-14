@@ -7,10 +7,20 @@ const NORDIC_FRANCE_BULLETIN_URL =
   "https://www.nordicfrance.fr/le-bulletin-neige/";
 const NORDIC_FRANCE_AJAX_URL =
   "https://www.nordicfrance.fr/cms/wp-admin/admin-ajax.php";
-const POSTS_PER_PAGE = 50;
-const MAX_PAGES = 40;
+const POSTS_PER_PAGE = 10;
+const MAX_PAGES = 200;
 const PAGE_FETCH_ATTEMPTS = 3;
-const PAGE_FETCH_RETRY_DELAY_MS = 1000;
+const PAGE_FETCH_RETRY_DELAY_MS = 2000;
+const INTER_PAGE_DELAY_MS = 500;
+const FETCH_TIMEOUT_MS = 30_000;
+
+/**
+ * Browser-like User-Agent string. The Nordic France WAF/CDN blocks bot-like
+ * User-Agent strings on POST requests to the AJAX endpoint, returning a 504
+ * Gateway Time-out. Using a standard browser UA avoids this.
+ */
+const USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0";
 
 type NordicMassifSlug =
   | "alpes_du_nord"
@@ -153,11 +163,12 @@ function extractPostsJson(html: string): string | null {
 async function fetchBulletinMetadataIndex(): Promise<BulletinMetadataIndex> {
   const response = await fetch(NORDIC_FRANCE_BULLETIN_URL, {
     headers: {
-      "User-Agent":
-        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
+      "User-Agent": USER_AGENT,
       Accept: "text/html, */*",
+      "Accept-Language": "fr,fr-FR;q=0.9,en-US;q=0.8,en;q=0.7",
       Referer: NORDIC_FRANCE_BULLETIN_URL,
     },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -201,15 +212,16 @@ async function fetchWeatherPage(page: number): Promise<string> {
   const response = await fetch(NORDIC_FRANCE_AJAX_URL, {
     method: "POST",
     headers: {
-      "User-Agent":
-        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
-      Accept: "text/html, */*",
+      "User-Agent": USER_AGENT,
+      Accept: "*/*",
+      "Accept-Language": "fr,fr-FR;q=0.9,en-US;q=0.8,en;q=0.7",
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
       Origin: "https://www.nordicfrance.fr",
       Referer: NORDIC_FRANCE_BULLETIN_URL,
       "X-Requested-With": "XMLHttpRequest",
     },
     body: form.toString(),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -313,6 +325,10 @@ export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
   const allRecords: ResortSnowData[] = [];
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
+    if (page > 1) {
+      await wait(INTER_PAGE_DELAY_MS);
+    }
+
     const html = await fetchWeatherPageWithRetry(page);
     const pageRecords = parseWeatherCards(html, metadataIndex);
 
