@@ -7,10 +7,30 @@ const NORDIC_FRANCE_BULLETIN_URL =
   "https://www.nordicfrance.fr/le-bulletin-neige/";
 const NORDIC_FRANCE_AJAX_URL =
   "https://www.nordicfrance.fr/cms/wp-admin/admin-ajax.php";
-const POSTS_PER_PAGE = 50;
-const MAX_PAGES = 40;
-const PAGE_FETCH_ATTEMPTS = 3;
-const PAGE_FETCH_RETRY_DELAY_MS = 1000;
+
+/**
+ * Fetch one post per AJAX page. The Nordic France WordPress server has an
+ * intermittently unreachable MySQL database — some posts trigger a PHP hang
+ * while others return fine. Using 1 post per page isolates failures so a
+ * single broken post does not take down an entire batch.
+ */
+const POSTS_PER_PAGE = 1;
+const MAX_PAGES = 500;
+const PAGE_FETCH_ATTEMPTS = 2;
+const PAGE_FETCH_RETRY_DELAY_MS = 2000;
+const INTER_PAGE_DELAY_MS = 200;
+const FETCH_TIMEOUT_MS = 12_000;
+
+/** Number of consecutive empty (0-record) pages before we stop paginating. */
+const CONSECUTIVE_EMPTY_THRESHOLD = 10;
+
+/**
+ * Browser-like User-Agent string. The Nordic France WAF/CDN blocks bot-like
+ * User-Agent strings on POST requests to the AJAX endpoint, returning a 504
+ * Gateway Time-out. Using a standard browser UA avoids this.
+ */
+const USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0";
 
 type NordicMassifSlug =
   | "alpes_du_nord"
@@ -82,6 +102,17 @@ async function wait(delayMs: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
+/**
+ * Detects the WordPress "Error establishing a database connection" page which
+ * the Nordic France server returns when its MySQL instance is unreachable.
+ */
+function isWordPressDbError(html: string): boolean {
+  return (
+    html.includes("Erreur lors de la connexion") ||
+    html.includes("Error establishing a database connection")
+  );
+}
+
 function mapMassifToRegion(
   massif: NordicMassifSlug | null
 ): ResortSnowData["region"] {
@@ -151,27 +182,55 @@ function extractPostsJson(html: string): string | null {
 }
 
 async function fetchBulletinMetadataIndex(): Promise<BulletinMetadataIndex> {
-  const response = await fetch(NORDIC_FRANCE_BULLETIN_URL, {
-    headers: {
-      "User-Agent":
-        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
-      Accept: "text/html, */*",
-      Referer: NORDIC_FRANCE_BULLETIN_URL,
-    },
-  });
+  const emptyIndex: BulletinMetadataIndex = {
+    byPermalink: new Map(),
+    byLabel: new Map(),
+  };
+
+  let response;
+  try {
+    response = await fetch(NORDIC_FRANCE_BULLETIN_URL, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "text/html, */*",
+        "Accept-Language": "fr,fr-FR;q=0.9,en-US;q=0.8,en;q=0.7",
+        Referer: NORDIC_FRANCE_BULLETIN_URL,
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch {
+    console.warn(
+      "⚠  Could not fetch Nordic France bulletin page (timeout/network error). " +
+        "Continuing without region metadata."
+    );
+    return emptyIndex;
+  }
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Nordic France bulletin page: HTTP ${response.status} ${response.statusText}`
+    console.warn(
+      `⚠  Nordic France bulletin page returned HTTP ${response.status}. ` +
+        "Continuing without region metadata."
     );
+    return emptyIndex;
   }
 
   const html = await response.text();
+
+  if (isWordPressDbError(html)) {
+    console.warn(
+      "⚠  Nordic France bulletin page returned a database error. " +
+        "Continuing without region metadata."
+    );
+    return emptyIndex;
+  }
+
   const postsJson = extractPostsJson(html);
   if (!postsJson) {
-    throw new Error(
-      "Failed to locate Weather.posts metadata in Nordic France bulletin page"
+    console.warn(
+      "⚠  Could not locate Weather.posts metadata in Nordic France bulletin page. " +
+        "Continuing without region metadata."
     );
+    return emptyIndex;
   }
 
   const parsed = JSON.parse(postsJson) as BulletinPostMetadata[];
@@ -201,15 +260,16 @@ async function fetchWeatherPage(page: number): Promise<string> {
   const response = await fetch(NORDIC_FRANCE_AJAX_URL, {
     method: "POST",
     headers: {
-      "User-Agent":
-        "ou-skier-bot/1.0 (+https://github.com/whiver/ou-skier) - snow data aggregator",
-      Accept: "text/html, */*",
+      "User-Agent": USER_AGENT,
+      Accept: "*/*",
+      "Accept-Language": "fr,fr-FR;q=0.9,en-US;q=0.8,en;q=0.7",
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
       Origin: "https://www.nordicfrance.fr",
       Referer: NORDIC_FRANCE_BULLETIN_URL,
       "X-Requested-With": "XMLHttpRequest",
     },
     body: form.toString(),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -218,10 +278,23 @@ async function fetchWeatherPage(page: number): Promise<string> {
     );
   }
 
-  return response.text();
+  const html = await response.text();
+
+  if (isWordPressDbError(html)) {
+    throw new Error(
+      `Nordic France AJAX page ${page} returned a WordPress database error`
+    );
+  }
+
+  return html;
 }
 
-async function fetchWeatherPageWithRetry(page: number): Promise<string> {
+/**
+ * Tries to fetch a single AJAX page, retrying on failure. Returns `null` if
+ * the page could not be fetched after all attempts (timeout, DB error, etc.)
+ * so the caller can skip it and continue with the next page.
+ */
+async function fetchWeatherPageWithRetry(page: number): Promise<string | null> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= PAGE_FETCH_ATTEMPTS; attempt += 1) {
@@ -241,9 +314,10 @@ async function fetchWeatherPageWithRetry(page: number): Promise<string> {
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`Failed to fetch Nordic France AJAX page ${page}`);
+  const reason =
+    lastError instanceof Error ? lastError.message : "unknown error";
+  console.warn(`⚠  Skipping Nordic France AJAX page ${page}: ${reason}`);
+  return null;
 }
 
 function parseWeatherCards(
@@ -311,17 +385,44 @@ function parseWeatherCards(
 export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
   const metadataIndex = await fetchBulletinMetadataIndex();
   const allRecords: ResortSnowData[] = [];
+  let consecutiveEmpty = 0;
+  let skippedPages = 0;
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const html = await fetchWeatherPageWithRetry(page);
-    const pageRecords = parseWeatherCards(html, metadataIndex);
-
-    console.log(`→ Parsed ${pageRecords.length} resort(s) from bulletin page ${page}.`);
-
-    if (pageRecords.length === 0) {
-      break;
+    if (page > 1) {
+      await wait(INTER_PAGE_DELAY_MS);
     }
 
+    const html = await fetchWeatherPageWithRetry(page);
+
+    if (html === null) {
+      // Page fetch failed — count as empty for the consecutive threshold but
+      // don't stop yet; there may be valid pages after this one.
+      skippedPages += 1;
+      consecutiveEmpty += 1;
+      if (consecutiveEmpty >= CONSECUTIVE_EMPTY_THRESHOLD) {
+        console.log(
+          `→ ${CONSECUTIVE_EMPTY_THRESHOLD} consecutive empty/failed pages — stopping pagination.`
+        );
+        break;
+      }
+      continue;
+    }
+
+    const pageRecords = parseWeatherCards(html, metadataIndex);
+
+    if (pageRecords.length === 0) {
+      consecutiveEmpty += 1;
+      if (consecutiveEmpty >= CONSECUTIVE_EMPTY_THRESHOLD) {
+        console.log(
+          `→ ${CONSECUTIVE_EMPTY_THRESHOLD} consecutive empty/failed pages — stopping pagination.`
+        );
+        break;
+      }
+      continue;
+    }
+
+    consecutiveEmpty = 0;
     allRecords.push(...pageRecords);
   }
 
@@ -337,8 +438,14 @@ export async function fetchNordicFranceBulletin(): Promise<ResortSnowData[]> {
     );
   }
 
+  if (skippedPages > 0) {
+    console.warn(
+      `⚠  Skipped ${skippedPages} page(s) due to server errors or timeouts.`
+    );
+  }
+
   console.log(
-    `→ Parsed ${allRecords.length} raw bulletin row(s), ${uniqueByName.size} unique resort(s).`
+    `→ Fetched ${allRecords.length} raw bulletin row(s), ${uniqueByName.size} unique resort(s).`
   );
 
   return [...uniqueByName.values()];
