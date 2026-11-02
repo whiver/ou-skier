@@ -19,16 +19,21 @@ function getIsoWeekStart(year: number, isoWeek: number): Date {
   return weekStart;
 }
 
+// ISO weeks in the second half of the year belong to the season's start year.
+function getSeasonIsoWeekStart(seasonEndYear: number, isoWeek: number): Date {
+  return getIsoWeekStart(isoWeek >= 27 ? seasonEndYear - 1 : seasonEndYear, isoWeek);
+}
+
 function getMonthMarkers(
   weeks: ResortWeekAverageSnowStat[],
-  referenceYear: number,
+  seasonEndYear: number,
   rowsCount: number
 ): Array<{ index: number; label: string }> {
   const rawMarkers: Array<{ index: number; label: string }> = [];
   const seen = new Set<string>();
 
   weeks.forEach((week, index) => {
-    const date = getIsoWeekStart(referenceYear, week.isoWeek);
+    const date = getSeasonIsoWeekStart(seasonEndYear, week.isoWeek);
     date.setUTCDate(date.getUTCDate() + 3);
     const markerKey = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
     if (seen.has(markerKey)) return;
@@ -69,16 +74,16 @@ function groupWeeks(weeks: ResortWeekAverageSnowStat[], rowsCount: number) {
 
 export default function ResortWeeklySnowHeatmap({
   weeks,
-  referenceYear,
+  seasonEndYear,
 }: {
   weeks: ResortWeekAverageSnowStat[];
-  referenceYear: number;
+  seasonEndYear: number;
 }) {
   if (weeks.length === 0) return null;
 
   const rowsCount = 4;
   const columns = groupWeeks(weeks, rowsCount);
-  const monthMarkers = getMonthMarkers(weeks, referenceYear, rowsCount);
+  const monthMarkers = getMonthMarkers(weeks, seasonEndYear, rowsCount);
 
   return (
     <div className="inline-block">
@@ -103,7 +108,7 @@ export default function ResortWeeklySnowHeatmap({
                   return <div key={`empty-${columnIndex}-${rowIndex}`} className="h-5 w-5" />;
                 }
 
-                const weekStart = getIsoWeekStart(referenceYear, week.isoWeek);
+                const weekStart = getSeasonIsoWeekStart(seasonEndYear, week.isoWeek);
                 const weekEnd = new Date(weekStart);
                 weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSkiSeason } from "@/lib/skiSeason";
 
 export interface ResortWeekSnowStat {
   weekStart: string;
@@ -24,11 +25,11 @@ function getCurrentSeasonBounds(now = new Date()): {
   seasonStart: Date;
   seasonEnd: Date;
 } {
-  const year = now.getUTCFullYear();
+  const { winterStart, winterEnd } = getSkiSeason(now);
 
   return {
-    seasonStart: new Date(Date.UTC(year, 0, 1)),
-    seasonEnd: new Date(Date.UTC(year + 1, 0, 1)),
+    seasonStart: winterStart,
+    seasonEnd: winterEnd,
   };
 }
 
@@ -108,13 +109,12 @@ export async function getResortSeasonWeeklySnowStats(
   });
 }
 
-export async function getResortCurrentYearDailySnowStats(
+export async function getResortCurrentSeasonDailySnowStats(
   resortId: number,
   now = new Date()
 ): Promise<ResortDaySnowStat[]> {
-  const year = now.getUTCFullYear();
-  const rangeStart = new Date(Date.UTC(year - 1, 10, 1));
-  const rangeEnd = new Date(Date.UTC(year, 4, 1));
+  const { seasonStart: rangeStart, seasonEnd: rangeEnd } =
+    getCurrentSeasonBounds(now);
 
   const rows = await prisma.$queryRaw<DailySnowStatRow[]>`
     WITH bounds AS (
@@ -188,11 +188,14 @@ export async function getResortAllYearsWeeklyAverageSnowStats(
   const minDate = firstRecord[0]?.minDate;
   if (!minDate) return [];
 
-  const startYear = minDate.getUTCFullYear();
-  const currentYear = now.getUTCFullYear();
-  const endYearExclusive = startYear < currentYear ? currentYear : currentYear + 1;
-  const rangeStart = new Date(Date.UTC(startYear, 0, 1));
-  const rangeEnd = new Date(Date.UTC(endYearExclusive, 0, 1));
+  // Average over completed seasons only; fall back to the in-progress season
+  // when it is the only one with data.
+  const currentSeason = getSkiSeason(now);
+  const rangeStart = getSkiSeason(minDate).periodStart;
+  const rangeEnd =
+    rangeStart < currentSeason.periodStart
+      ? currentSeason.periodStart
+      : currentSeason.periodEnd;
 
   const rows = await prisma.$queryRaw<WeeklyAverageRow[]>`
     WITH per_year_week AS (

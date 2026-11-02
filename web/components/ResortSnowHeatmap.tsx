@@ -9,17 +9,17 @@ import ResortDailySnowHeatmap from "@/components/ResortDailySnowHeatmap";
 import ResortWeeklySnowHeatmap from "@/components/ResortWeeklySnowHeatmap";
 
 export default function ResortSnowHeatmap({
-  currentYearDays,
+  currentSeasonDays,
   allYearsWeeks,
-  currentYear,
+  seasonEndYear,
 }: {
-  currentYearDays: ResortDaySnowStat[];
+  currentSeasonDays: ResortDaySnowStat[];
   allYearsWeeks: ResortWeekAverageSnowStat[];
-  currentYear: number;
+  seasonEndYear: number;
 }) {
   const [mode, setMode] = useState<"year" | "all">("year");
 
-  if (currentYearDays.length === 0 && allYearsWeeks.length === 0) {
+  if (currentSeasonDays.length === 0 && allYearsWeeks.length === 0) {
     return null;
   }
 
@@ -33,7 +33,7 @@ export default function ResortSnowHeatmap({
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
           {mode === "year"
-            ? `Couverture neige ${currentYear} (quotidien)`
+            ? `Couverture neige ${seasonEndYear} (quotidien)`
             : "Couverture neige (toutes années, hebdo)"}
         </h2>
 
@@ -47,7 +47,7 @@ export default function ResortSnowHeatmap({
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            {currentYear}
+            {seasonEndYear}
           </button>
           <button
             type="button"
@@ -65,11 +65,11 @@ export default function ResortSnowHeatmap({
 
       <div className={cardClassName}>
         {mode === "year" ? (
-          <ResortDailySnowHeatmap days={currentYearDays} />
+          <ResortDailySnowHeatmap days={currentSeasonDays} />
         ) : (
           <ResortWeeklySnowHeatmap
             weeks={allYearsWeeks}
-            referenceYear={currentYear}
+            seasonEndYear={seasonEndYear}
           />
         )}
       </div>

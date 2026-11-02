@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { formatRegionLabel } from "@/lib/region";
 import {
   getResortAllYearsWeeklyAverageSnowStats,
-  getResortCurrentYearDailySnowStats,
+  getResortCurrentSeasonDailySnowStats,
 } from "@/lib/snowStats";
+import { getSkiSeason } from "@/lib/skiSeason";
 import ResortSnowHeatmap from "@/components/ResortSnowHeatmap";
 import { Resort } from "@/types";
 
@@ -81,11 +82,12 @@ export default async function ResortPage({
   const resort = await getResort(resortId);
   if (!resort) notFound();
 
-  const [dailySnowStatsCurrentYear, weeklySnowStatsAllYears] = await Promise.all([
-    getResortCurrentYearDailySnowStats(resortId),
-    getResortAllYearsWeeklyAverageSnowStats(resortId),
+  const now = new Date();
+  const [dailySnowStatsCurrentSeason, weeklySnowStatsAllYears] = await Promise.all([
+    getResortCurrentSeasonDailySnowStats(resortId, now),
+    getResortAllYearsWeeklyAverageSnowStats(resortId, now),
   ]);
-  const currentYear = new Date().getUTCFullYear();
+  const seasonEndYear = getSkiSeason(now).endYear;
 
   const latest = resort.snowRecords[0] ?? null;
   const history = resort.snowRecords.slice(1);
@@ -157,9 +159,9 @@ export default async function ResortPage({
         )}
 
         <ResortSnowHeatmap
-          currentYearDays={dailySnowStatsCurrentYear}
+          currentSeasonDays={dailySnowStatsCurrentSeason}
           allYearsWeeks={weeklySnowStatsAllYears}
-          currentYear={currentYear}
+          seasonEndYear={seasonEndYear}
         />
 
         {history.length > 0 && (
