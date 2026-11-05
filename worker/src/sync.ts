@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { ResortSnowData } from "./types";
 import { geocodeResort } from "./geocode";
+import { isFromPreviousSkiSeason } from "./skiSeason";
 
 /**
  * Upserts resort and snow record data into the database.
@@ -8,6 +9,10 @@ import { geocodeResort } from "./geocode";
  * For each item:
  *  1. Upserts the Resort by name (creates if not found, updates metadata if changed).
  *  2. Upserts the SnowRecord by (resortId, recordDate).
+ *
+ * Bulletins last updated during a previous ski season are stored as closed
+ * (0 open slopes): the source keeps showing last winter's figures until the
+ * resort publishes its first report of the new season.
  */
 export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
@@ -30,8 +35,13 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         record.recordDate.getUTCDate()
       )
     );
+    const isStaleBulletin = isFromPreviousSkiSeason(
+      sourceRecordDate,
+      ingestionRecordDate
+    );
+    const openSlopes = isStaleBulletin ? 0 : record.openSlopes;
     console.log(
-      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()})`
+      `→ New snow record to insert: ${record.name} (open/total: ${openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()}${isStaleBulletin ? `, stale bulletin from previous season: forced closed (source open slopes: ${record.openSlopes ?? "n/a"})` : ""})`
     );
 
     const existingResort = await db.resort.findUnique({
@@ -91,7 +101,7 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         data: {
           resortId: resort.id,
           recordDate: ingestionRecordDate,
-          openSlopes: record.openSlopes,
+          openSlopes,
           totalSlopes: record.totalSlopes,
           notes: record.notes,
           sourceUrl: record.sourceUrl,
@@ -108,7 +118,7 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
     await db.snowRecord.update({
       where: { id: existingSnowRecord.id },
       data: {
-        openSlopes: record.openSlopes ?? undefined,
+        openSlopes: openSlopes ?? undefined,
         totalSlopes: record.totalSlopes ?? undefined,
         notes: record.notes ?? undefined,
         sourceUrl: record.sourceUrl ?? undefined,
