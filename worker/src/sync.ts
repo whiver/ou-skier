@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getDb } from "./db";
 import { ResortSnowData } from "./types";
 import { geocodeResort } from "./geocode";
@@ -28,22 +29,6 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   );
 
   for (const record of records) {
-    const sourceRecordDate = new Date(
-      Date.UTC(
-        record.recordDate.getUTCFullYear(),
-        record.recordDate.getUTCMonth(),
-        record.recordDate.getUTCDate()
-      )
-    );
-    const isStaleBulletin = isFromPreviousSkiSeason(
-      sourceRecordDate,
-      ingestionRecordDate
-    );
-    const openSlopes = isStaleBulletin ? 0 : record.openSlopes;
-    console.log(
-      `→ New snow record to insert: ${record.name} (open/total: ${openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()}${isStaleBulletin ? `, stale bulletin from previous season: forced closed (source open slopes: ${record.openSlopes ?? "n/a"})` : ""})`
-    );
-
     const existingResort = await db.resort.findUnique({
       where: { name: record.name },
       select: { id: true },
@@ -82,6 +67,45 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
           });
         })();
 
+    // Hash the source values, not the inferred year or forced-closed count.
+    const sourceBulletinHash = createHash("sha256")
+      .update(JSON.stringify([
+        record.recordDate.getUTCMonth(),
+        record.recordDate.getUTCDate(),
+        record.openSlopes,
+        record.totalSlopes,
+        record.notes,
+        record.sourceUrl,
+      ]))
+      .digest("hex");
+    const previousBulletin = await db.snowRecord.findFirst({
+      where: {
+        resortId: resort.id,
+        recordDate: { lte: ingestionRecordDate },
+        sourceRecordDate: { not: null },
+        sourceBulletinHash: { not: null },
+      },
+      orderBy: { recordDate: "desc" },
+      select: { sourceRecordDate: true, sourceBulletinHash: true },
+    });
+    const sourceRecordDate =
+      previousBulletin?.sourceBulletinHash === sourceBulletinHash &&
+      previousBulletin.sourceRecordDate
+        ? previousBulletin.sourceRecordDate
+        : new Date(Date.UTC(
+            record.recordDate.getUTCFullYear(),
+            record.recordDate.getUTCMonth(),
+            record.recordDate.getUTCDate()
+          ));
+    const isStaleBulletin = isFromPreviousSkiSeason(
+      sourceRecordDate,
+      ingestionRecordDate
+    );
+    const openSlopes = isStaleBulletin ? 0 : record.openSlopes;
+    console.log(
+      `→ New snow record to insert: ${record.name} (open/total: ${openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()}${isStaleBulletin ? `, stale bulletin from previous season: forced closed (source open slopes: ${record.openSlopes ?? "n/a"})` : ""})`
+    );
+
     const existingSnowRecord = await db.snowRecord.findUnique({
       where: {
         resortId_recordDate: {
@@ -101,6 +125,8 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         data: {
           resortId: resort.id,
           recordDate: ingestionRecordDate,
+          sourceRecordDate,
+          sourceBulletinHash,
           openSlopes,
           totalSlopes: record.totalSlopes,
           notes: record.notes,
@@ -118,6 +144,8 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
     await db.snowRecord.update({
       where: { id: existingSnowRecord.id },
       data: {
+        sourceRecordDate,
+        sourceBulletinHash,
         openSlopes: openSlopes ?? undefined,
         totalSlopes: record.totalSlopes ?? undefined,
         notes: record.notes ?? undefined,
