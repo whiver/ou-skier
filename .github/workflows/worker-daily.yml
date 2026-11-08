@@ -39,5 +39,11 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      - name: Test worker
+        run: npm test
+
+      - name: Apply database migrations
+        run: npm run db:migrate
+
       - name: Run ingestion worker
         run: npm run dev

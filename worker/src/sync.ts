@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { getDb } from "./db";
 import { ResortSnowData } from "./types";
 import { geocodeResort } from "./geocode";
+import { isFromPreviousSkiSeason } from "./skiSeason";
 
 /**
  * Upserts resort and snow record data into the database.
@@ -8,6 +10,10 @@ import { geocodeResort } from "./geocode";
  * For each item:
  *  1. Upserts the Resort by name (creates if not found, updates metadata if changed).
  *  2. Upserts the SnowRecord by (resortId, recordDate).
+ *
+ * Bulletins last updated during a previous ski season are stored as closed
+ * (0 open slopes): the source keeps showing last winter's figures until the
+ * resort publishes its first report of the new season.
  */
 export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   const db = getDb();
@@ -23,17 +29,6 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
   );
 
   for (const record of records) {
-    const sourceRecordDate = new Date(
-      Date.UTC(
-        record.recordDate.getUTCFullYear(),
-        record.recordDate.getUTCMonth(),
-        record.recordDate.getUTCDate()
-      )
-    );
-    console.log(
-      `→ New snow record to insert: ${record.name} (open/total: ${record.openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()})`
-    );
-
     const existingResort = await db.resort.findUnique({
       where: { name: record.name },
       select: { id: true },
@@ -72,6 +67,45 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
           });
         })();
 
+    // Hash the source values, not the inferred year or forced-closed count.
+    const sourceBulletinHash = createHash("sha256")
+      .update(JSON.stringify([
+        record.recordDate.getUTCMonth(),
+        record.recordDate.getUTCDate(),
+        record.openSlopes,
+        record.totalSlopes,
+        record.notes,
+        record.sourceUrl,
+      ]))
+      .digest("hex");
+    const previousBulletin = await db.snowRecord.findFirst({
+      where: {
+        resortId: resort.id,
+        recordDate: { lte: ingestionRecordDate },
+        sourceRecordDate: { not: null },
+        sourceBulletinHash: { not: null },
+      },
+      orderBy: { recordDate: "desc" },
+      select: { sourceRecordDate: true, sourceBulletinHash: true },
+    });
+    const sourceRecordDate =
+      previousBulletin?.sourceBulletinHash === sourceBulletinHash &&
+      previousBulletin.sourceRecordDate
+        ? previousBulletin.sourceRecordDate
+        : new Date(Date.UTC(
+            record.recordDate.getUTCFullYear(),
+            record.recordDate.getUTCMonth(),
+            record.recordDate.getUTCDate()
+          ));
+    const isStaleBulletin = isFromPreviousSkiSeason(
+      sourceRecordDate,
+      ingestionRecordDate
+    );
+    const openSlopes = isStaleBulletin ? 0 : record.openSlopes;
+    console.log(
+      `→ New snow record to insert: ${record.name} (open/total: ${openSlopes ?? "n/a"}/${record.totalSlopes ?? "n/a"}, source date: ${sourceRecordDate.toISOString()}, stored date: ${ingestionRecordDate.toISOString()}${isStaleBulletin ? `, stale bulletin from previous season: forced closed (source open slopes: ${record.openSlopes ?? "n/a"})` : ""})`
+    );
+
     const existingSnowRecord = await db.snowRecord.findUnique({
       where: {
         resortId_recordDate: {
@@ -91,7 +125,9 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
         data: {
           resortId: resort.id,
           recordDate: ingestionRecordDate,
-          openSlopes: record.openSlopes,
+          sourceRecordDate,
+          sourceBulletinHash,
+          openSlopes,
           totalSlopes: record.totalSlopes,
           notes: record.notes,
           sourceUrl: record.sourceUrl,
@@ -108,7 +144,9 @@ export async function syncResorts(records: ResortSnowData[]): Promise<void> {
     await db.snowRecord.update({
       where: { id: existingSnowRecord.id },
       data: {
-        openSlopes: record.openSlopes ?? undefined,
+        sourceRecordDate,
+        sourceBulletinHash,
+        openSlopes: openSlopes ?? undefined,
         totalSlopes: record.totalSlopes ?? undefined,
         notes: record.notes ?? undefined,
         sourceUrl: record.sourceUrl ?? undefined,

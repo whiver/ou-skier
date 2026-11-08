@@ -30,6 +30,8 @@ SnowRecord
 ├── id             Integer (PK)
 ├── resortId       Integer (FK → Resort)
 ├── recordDate     DateTime
+├── sourceRecordDate DateTime?
+├── sourceBulletinHash String?
 ├── openSlopes     Int?
 ├── totalSlopes    Int?
 ├── notes          String?
@@ -113,6 +115,19 @@ After a successful worker run, the worker calls this endpoint so `/domaines` and
 
 The worker fetches the latest [Nordic France](https://www.nordicfrance.fr/le-bulletin-neige/) snow bulletin and upserts the data into the database.
 
+Daily records use the ingestion date. The worker also stores the resolved source
+date and a fingerprint of the bulletin's day/month, raw slope counts, notes and
+source URL. An unchanged bulletin retains its original source year across runs,
+including on its anniversary; bulletins from an earlier ski season (September 1
+rollover) are stored with zero open slopes. A changed bulletin is resolved anew.
+Without a source-provided year, an identical new annual report cannot be
+distinguished from an unchanged old report and remains closed conservatively.
+
+Existing records have no source-date history to backfill reliably; tracking starts
+with the first ingestion after deployment. Run `npm run db:migrate` from `worker/`
+before running the updated worker. The daily workflow applies migrations before
+ingestion. Previously stored daily slope counts are not rewritten.
+
 It combines paginated weather cards with inline station metadata (`Weather.posts`) from the bulletin page to infer a massif, then maps that massif to a best-effort `Region` value.
 
 Before writing anything to the database, the worker validates scrape coverage against recently active resorts so partial bulletin responses are surfaced immediately while still ingesting the available scraped data.
@@ -125,6 +140,7 @@ Because some massifs span multiple administrative regions, this region attributi
 cd worker
 npm run dev      # development (ts-node)
 npm run build    # compile TypeScript
+npm test         # run worker regression tests
 npm start        # run compiled version
 ```
 

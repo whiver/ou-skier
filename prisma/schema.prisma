@@ -37,15 +37,17 @@ model Resort {
 }
 
 model SnowRecord {
-  id            Int      @id @default(autoincrement())
-  resortId      Int
-  resort        Resort   @relation(fields: [resortId], references: [id])
-  recordDate    DateTime
-  openSlopes    Int?
-  totalSlopes   Int?
-  notes         String?
-  sourceUrl     String?
-  createdAt     DateTime @default(now())
+  id                 Int       @id @default(autoincrement())
+  resortId           Int
+  resort             Resort    @relation(fields: [resortId], references: [id])
+  recordDate         DateTime
+  sourceRecordDate   DateTime?
+  sourceBulletinHash String?
+  openSlopes         Int?
+  totalSlopes        Int?
+  notes              String?
+  sourceUrl          String?
+  createdAt          DateTime  @default(now())
 
   @@unique([resortId, recordDate])
 }
